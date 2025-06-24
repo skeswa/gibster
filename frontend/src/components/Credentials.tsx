@@ -1,25 +1,26 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CredentialsProps, CredentialsFormData, ErrorResponse } from '../types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
-const Credentials = ({ user }) => {
-  const [formData, setFormData] = useState({
+const Credentials: React.FC<CredentialsProps> = ({ user }) => {
+  const [formData, setFormData] = useState<CredentialsFormData>({
     gibney_email: '',
     gibney_password: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
@@ -38,11 +39,11 @@ const Credentials = ({ user }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: ErrorResponse = await response.json();
         throw new Error(errorData.detail || 'Failed to update credentials');
       }
 
-      const result = await response.json();
+      const result: { message: string } = await response.json();
       setMessage(result.message);
       
       // Clear form
@@ -52,7 +53,7 @@ const Credentials = ({ user }) => {
       });
 
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

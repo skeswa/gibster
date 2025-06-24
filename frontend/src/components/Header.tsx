@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { HeaderProps } from '../types';
 
-const Header = ({ user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   return (
     <header className="header">
       <h1>Gibster</h1>

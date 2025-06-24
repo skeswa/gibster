@@ -1,25 +1,26 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { RegisterProps, RegisterFormData, TokenResponse, User, ErrorResponse } from '../types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
-const Register = ({ onLogin }) => {
-  const [formData, setFormData] = useState({
+const Register: React.FC<RegisterProps> = ({ onLogin }) => {
+  const [formData, setFormData] = useState<RegisterFormData>({
     email: '',
     password: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -44,11 +45,11 @@ const Register = ({ onLogin }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: ErrorResponse = await response.json();
         throw new Error(errorData.detail || 'Registration failed');
       }
 
-      const userData = await response.json();
+      const userData: User = await response.json();
 
       // Auto-login after registration
       const loginResponse = await fetch(`${API_BASE}/api/v1/auth/token`, {
@@ -66,11 +67,11 @@ const Register = ({ onLogin }) => {
         throw new Error('Registration successful, but auto-login failed');
       }
 
-      const tokenData = await loginResponse.json();
+      const tokenData: TokenResponse = await loginResponse.json();
       onLogin(tokenData.access_token, userData);
 
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -111,7 +112,7 @@ const Register = ({ onLogin }) => {
               onChange={handleChange}
               required
               placeholder="Choose a secure password"
-              minLength="6"
+              minLength={6}
             />
           </div>
 
@@ -125,7 +126,7 @@ const Register = ({ onLogin }) => {
               onChange={handleChange}
               required
               placeholder="Confirm your password"
-              minLength="6"
+              minLength={6}
             />
           </div>
 

@@ -7,18 +7,19 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import Credentials from './components/Credentials';
+import { User } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+function App(): React.JSX.Element {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = () => {
+  const checkAuthStatus = (): void => {
     const token = localStorage.getItem('token');
     if (token) {
       // Verify token with server
@@ -33,7 +34,7 @@ function App() {
         }
         throw new Error('Token invalid');
       })
-      .then(userData => {
+      .then((userData: User) => {
         setUser(userData);
       })
       .catch(() => {
@@ -48,12 +49,12 @@ function App() {
     }
   };
 
-  const login = (token, userData) => {
+  const login = (token: string, userData: User): void => {
     localStorage.setItem('token', token);
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = (): void => {
     localStorage.removeItem('token');
     setUser(null);
   };

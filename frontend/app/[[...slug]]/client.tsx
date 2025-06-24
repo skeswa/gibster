@@ -4,6 +4,6 @@ import dynamic from 'next/dynamic'
 
 const App = dynamic(() => import('../../src/App'), { ssr: false })
 
-export function ClientOnly() {
+export function ClientOnly(): React.JSX.Element {
   return <App />
 }

@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LoginProps, LoginFormData, TokenResponse, User, ErrorResponse } from '../types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
-const Login = ({ onLogin }) => {
-  const [formData, setFormData] = useState({
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -34,11 +35,11 @@ const Login = ({ onLogin }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: ErrorResponse = await response.json();
         throw new Error(errorData.detail || 'Login failed');
       }
 
-      const tokenData = await response.json();
+      const tokenData: TokenResponse = await response.json();
 
       // Get user profile
       const profileResponse = await fetch(`${API_BASE}/api/v1/user/profile`, {
@@ -51,11 +52,11 @@ const Login = ({ onLogin }) => {
         throw new Error('Failed to get user profile');
       }
 
-      const userData = await profileResponse.json();
+      const userData: User = await profileResponse.json();
       onLogin(tokenData.access_token, userData);
 
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

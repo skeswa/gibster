@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { DashboardProps, Booking, ErrorResponse } from '../types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
-const Dashboard = ({ user }) => {
-  const [bookings, setBookings] = useState([]);
-  const [calendarUrl, setCalendarUrl] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [calendarUrl, setCalendarUrl] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [syncing, setSyncing] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (): Promise<void> => {
     setLoading(true);
     const token = localStorage.getItem('token');
 
@@ -31,12 +32,12 @@ const Dashboard = ({ user }) => {
       ]);
 
       if (bookingsResponse.ok) {
-        const bookingsData = await bookingsResponse.json();
+        const bookingsData: Booking[] = await bookingsResponse.json();
         setBookings(bookingsData);
       }
 
       if (calendarResponse.ok) {
-        const calendarData = await calendarResponse.json();
+        const calendarData: { calendar_url: string } = await calendarResponse.json();
         setCalendarUrl(calendarData.calendar_url);
       }
     } catch (err) {
@@ -46,7 +47,7 @@ const Dashboard = ({ user }) => {
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (): Promise<void> => {
     setSyncing(true);
     setMessage('');
     setError('');
@@ -60,34 +61,34 @@ const Dashboard = ({ user }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: ErrorResponse = await response.json();
         throw new Error(errorData.detail || 'Sync failed');
       }
 
-      const result = await response.json();
+      const result: { message: string } = await response.json();
       setMessage(result.message);
       
       // Reload bookings after sync
       loadDashboardData();
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setSyncing(false);
     }
   };
 
-  const copyCalendarUrl = () => {
+  const copyCalendarUrl = (): void => {
     navigator.clipboard.writeText(calendarUrl).then(() => {
       setMessage('Calendar URL copied to clipboard!');
       setTimeout(() => setMessage(''), 3000);
     });
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();
   };
 
-  const getStatusClass = (status) => {
+  const getStatusClass = (status: string): string => {
     const statusLower = status.toLowerCase();
     if (statusLower.includes('confirmed')) return 'status-confirmed';
     if (statusLower.includes('pending')) return 'status-pending';
