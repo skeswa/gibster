@@ -174,6 +174,13 @@ async def sync_bookings(
         )
     
     try:
+        # For local development without Celery, run synchronously
+        from .worker import USE_CELERY
+        if USE_CELERY:
+            # If Celery is available, you could queue this as a background task
+            # For now, we'll still run it synchronously for immediate feedback
+            pass
+        
         updated_bookings = scrape_user_bookings(db, current_user)
         return {
             "message": f"Successfully synchronized {len(updated_bookings)} bookings",

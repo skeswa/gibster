@@ -49,35 +49,41 @@ graph TD
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Local Development (Recommended)
 
 ```bash
 git clone <your-repo-url>
 cd gibster
-python setup.py  # Creates .env and installs dependencies
-# Edit .env with your secure keys
-docker-compose up -d
+python dev_setup.py  # Automated Docker-free setup
+# Edit .env with your Gibney credentials (created from .env.example)
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python run_server.py
 ```
 
 Access at http://localhost:8000
 
-### Manual Setup
+The setup script automatically:
+- Creates virtual environment
+- Installs all Python dependencies
+- Installs Playwright browser
+- Creates SQLite database
+- Creates `.env` file from `.env.example` template
+- Checks for optional services (Redis)
+
+**Important:** After setup, edit `.env` and add your actual Gibney credentials and generate secure keys for production use.
+
+### Using Docker (Alternative)
 
 ```bash
-python setup.py  # Automated setup: installs dependencies, creates .env, sets up Playwright
-# Edit .env file with your settings
-
-# Start services in separate terminals:
-redis-server
-python run_server.py
-python run_worker.py
+git clone <your-repo-url>
+cd gibster
+# Create production environment file
+cp .env.production.example .env.production
+# Edit .env.production with your credentials and secure keys
+docker-compose --env-file .env.production up -d
 ```
 
-The setup script automatically:
-- Creates `.env` file from template
-- Installs Python dependencies
-- Installs Playwright browser
-- Provides next steps guidance
+**Note:** The Docker setup requires PostgreSQL and Redis containers, while local development uses SQLite and runs background tasks synchronously for simplicity.
 
 ## Usage
 
@@ -94,6 +100,9 @@ The setup script automatically:
 ### Running Tests
 
 ```bash
+# Activate virtual environment first
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Run all tests with coverage
 python run_tests.py --coverage
 
@@ -129,22 +138,73 @@ python test_scraper.py
 
 ### Environment Variables
 
-**Required:**
-- `SECRET_KEY` - JWT signing key (generate with `openssl rand -hex 32`)
-- `ENCRYPTION_KEY` - Credential encryption key
-
-**Optional:**
-- `DATABASE_URL` - Database connection (default: SQLite)
-- `REDIS_URL` - Redis connection (default: `redis://localhost:6379/0`)
-
-### Example .env
+Copy `.env.example` to `.env` and customize the values:
 
 ```bash
-SECRET_KEY=your-very-secure-secret-key-here
-ENCRYPTION_KEY=your-encryption-key-here
-DATABASE_URL=postgresql://user:password@localhost:5432/gibster
+cp .env.example .env
+```
+
+#### Required Variables
+
+- **`GIBNEY_EMAIL`** - Your Gibney login email
+- **`GIBNEY_PASSWORD`** - Your Gibney login password  
+- **`SECRET_KEY`** - JWT signing key (generate with `openssl rand -hex 32`)
+- **`ENCRYPTION_KEY`** - Credential encryption key (generate with `openssl rand -hex 32`)
+
+#### Database Configuration
+
+**Local Development (default):**
+- Uses SQLite database (`gibster_dev.db`)
+- No additional configuration needed
+
+**Production:**
+```bash
+DATABASE_URL=postgresql://username:password@localhost:5432/gibster
+```
+
+#### Background Tasks
+
+**Local Development (default):**
+```bash
+USE_CELERY=false  # Tasks run synchronously
+```
+
+**Production with Redis:**
+```bash
+USE_CELERY=true
 REDIS_URL=redis://localhost:6379/0
 ```
+
+#### Server Configuration
+
+```bash
+APP_HOST=127.0.0.1  # Server host
+APP_PORT=8000       # Server port  
+APP_RELOAD=true     # Auto-reload for development
+```
+
+#### Security Key Generation
+
+Generate secure keys for production:
+
+```bash
+# Generate SECRET_KEY
+openssl rand -hex 32
+
+# Generate ENCRYPTION_KEY  
+openssl rand -hex 32
+```
+
+### Complete .env.example
+
+The project includes a comprehensive `.env.example` file with all available configuration options and detailed comments. Key sections include:
+
+- **Gibney Credentials** - Your login information
+- **Security Keys** - JWT and encryption keys
+- **Database Configuration** - SQLite vs PostgreSQL options
+- **Background Tasks** - Celery/Redis settings
+- **Server Configuration** - Host, port, and development settings
+- **Optional Production Settings** - Logging, CORS, etc.
 
 ## API Reference
 
@@ -163,54 +223,38 @@ Documentation: http://localhost:8000/docs
 ### Production with Docker
 
 ```bash
-# Create production override
-cat > docker-compose.prod.yml << 'EOF'
-version: '3.8'
-services:
-  web:
-    environment:
-      - DATABASE_URL=postgresql://user:pass@db:5432/gibster
-      - SECRET_KEY=${SECRET_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-    ports:
-      - "127.0.0.1:8000:8000"
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=gibster
-      - POSTGRES_USER=gibster
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-volumes:
-  postgres_data:
-EOF
+# Copy and configure production environment
+cp .env.production.example .env.production
 
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# IMPORTANT: Edit .env.production and set:
+# - Your actual Gibney credentials
+# - Secure SECRET_KEY and ENCRYPTION_KEY (generate with: openssl rand -hex 32)
+# - Secure database password
+# - Your domain for CORS settings
+
+# Deploy with production configuration
+docker-compose --env-file .env.production up -d
+
+# Optional: Use production-specific compose file
+# docker-compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
-### Cloud Platforms
-
-**Fly.io:**
-```bash
-flyctl launch
-flyctl secrets set SECRET_KEY=your-key ENCRYPTION_KEY=your-key
-flyctl deploy
-```
-
-**Heroku:**
-```bash
-heroku create your-app
-heroku addons:create heroku-postgresql:mini heroku-redis:mini
-heroku config:set SECRET_KEY=your-key ENCRYPTION_KEY=your-key
-git push heroku main
-```
+**Security Checklist for Production:**
+- ✅ Generated secure `SECRET_KEY` and `ENCRYPTION_KEY`
+- ✅ Set strong database password
+- ✅ Configured `ALLOWED_ORIGINS` for your domain
+- ✅ Disabled `DATABASE_DEBUG` and `APP_RELOAD`
+- ✅ Set `ENVIRONMENT=production`
 
 ## Troubleshooting
 
-**Scraper login fails:** Verify Gibney credentials, check site changes, ensure Playwright installed
+**Scraper login fails:** Verify Gibney credentials, check site changes, ensure Playwright installed with `python -m playwright install chromium`
 
-**Calendar not updating:** Check worker logs, verify Redis connection, restart worker
+**Calendar not updating (local dev):** Manual sync available via API at `/api/v1/user/sync` or run `python -c "from app.worker import sync_scrape_all_users; sync_scrape_all_users()"`
+
+**Calendar not updating (Docker):** Check worker logs, verify Redis connection, restart worker
+
+**SQLite locked errors:** Ensure database file has proper permissions, close other connections to database
 
 **Calendar app not syncing:** Verify URL accessibility, check app refresh settings
 
@@ -235,6 +279,7 @@ git push heroku main
 5. Submit pull request
 
 **Guidelines:**
+
 - Follow PEP 8, add type hints and tests
 - Maintain 80%+ test coverage
 - Write descriptive commits and PR descriptions
@@ -250,6 +295,7 @@ Educational purposes. Please respect Gibney's terms of service.
 ### Database Schema
 
 **users table:**
+
 - `id` (uuid) - Primary key
 - `email` (varchar) - Login email
 - `password_hash` (varchar) - Hashed Gibster password
@@ -259,6 +305,7 @@ Educational purposes. Please respect Gibney's terms of service.
 - `created_at`, `updated_at` (timestamp)
 
 **bookings table:**
+
 - `id` (varchar) - Gibney booking ID
 - `user_id` (uuid) - Foreign key to users
 - `name` (varchar) - Booking name (e.g., "R-490015")
