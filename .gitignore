@@ -160,6 +160,11 @@ frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
 # npm
 npm-debug.log*
 yarn-debug.log*

@@ -8,7 +8,7 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import Credentials from './components/Credentials';
 
-const API_BASE = process.env.REACT_APP_API_BASE || '';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 function App() {
   const [user, setUser] = useState(null);

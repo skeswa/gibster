@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const API_BASE = process.env.REACT_APP_API_BASE || '';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 const Credentials = ({ user }) => {
   const [formData, setFormData] = useState({
