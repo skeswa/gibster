@@ -116,13 +116,91 @@ pytest -v --cov=app
 
 ### Frontend Development
 
+The frontend has been migrated from Create React App to **Next.js with TypeScript** for improved performance, better developer experience, and modern tooling.
+
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev        # Start development server (Next.js)
+npm run build      # Build for production
+npm run start      # Start production server
+npm test           # Run component tests
+npm run test:watch # Run tests in watch mode
+npm run lint       # Run ESLint
+npm run type-check # TypeScript type checking
 ```
 
 Frontend available at http://localhost:3000 with API proxy to backend.
+
+**Key Features of the Next.js Migration:**
+- **TypeScript Support**: Full type safety and IntelliSense
+- **Modern Architecture**: App Router with server and client components
+- **Performance**: Automatic code splitting and optimization
+- **Testing**: Jest with Testing Library for component testing
+- **Development**: Hot reload and enhanced debugging
+
+### Frontend Architecture
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript with strict type checking
+- **Styling**: CSS modules and global styles
+- **Routing**: React Router DOM (maintained for SPA behavior)
+- **Testing**: Jest + Testing Library + TypeScript
+- **Build**: Next.js optimized bundling
+
+### Component Structure
+
+```
+frontend/
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── [[...slug]]/     # Catch-all route for SPA
+│   │   │   ├── page.tsx     # Route handler
+│   │   │   └── client.tsx   # Client-side app wrapper
+│   │   └── layout.tsx       # Root layout
+│   ├── components/          # React components (TypeScript)
+│   │   ├── Header.tsx
+│   │   ├── Login.tsx
+│   │   ├── Register.tsx
+│   │   ├── Dashboard.tsx
+│   │   └── Credentials.tsx
+│   ├── __tests__/           # Component tests
+│   │   ├── Header.test.tsx
+│   │   └── Login.test.tsx
+│   ├── App.tsx              # Main application
+│   ├── App.css             # Application styles
+│   └── index.css           # Global styles
+├── jest.config.js           # Test configuration
+├── jest.setup.js            # Test setup
+├── jest-setup.d.ts          # Jest type declarations
+├── next.config.ts           # Next.js configuration
+├── tsconfig.json            # TypeScript configuration
+└── package.json             # Dependencies and scripts
+```
+
+### Running Tests (Frontend)
+
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run TypeScript checks
+npm run type-check
+```
+
+**Test Coverage**: Component tests verify:
+- Component rendering and props
+- User interactions and form submissions
+- API integration mocking
+- Error handling and loading states
 
 ### Test Scraper
 
@@ -174,6 +252,15 @@ USE_CELERY=false  # Tasks run synchronously
 USE_CELERY=true
 REDIS_URL=redis://localhost:6379/0
 ```
+
+#### Frontend Configuration
+
+**Next.js Environment Variables:**
+```bash
+NEXT_PUBLIC_API_BASE=http://localhost:8000  # API backend URL for client-side
+```
+
+Note: Frontend now uses `NEXT_PUBLIC_` prefix instead of `REACT_APP_` for client-side environment variables.
 
 #### Server Configuration
 
