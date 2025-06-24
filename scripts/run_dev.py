@@ -107,28 +107,6 @@ def check_frontend_deps():
     return True
 
 
-def run_backend():
-    """Run the backend server"""
-    try:
-        from scripts.run_server import main as server_main
-
-        server_main()
-    except Exception as e:
-        print(f"❌ Backend server error: {e}")
-
-
-def run_frontend():
-    """Run the frontend development server"""
-    try:
-        frontend_dir = Path("frontend")
-        env = os.environ.copy()
-        env["BROWSER"] = "none"  # Prevent auto-opening browser since we'll show URLs
-
-        subprocess.run(["npm", "start"], cwd=frontend_dir, env=env)
-    except Exception as e:
-        print(f"❌ Frontend server error: {e}")
-
-
 def main():
     """Main development runner"""
     print("🚀 Gibster Development Server")
@@ -160,20 +138,74 @@ def main():
     print("🌐 Frontend: http://localhost:3000")
     print("🛑 Press Ctrl+C to stop both servers\n")
 
-    # Start backend in a separate thread
-    backend_thread = threading.Thread(target=run_backend, daemon=True)
-    backend_thread.start()
+    backend_process = None
+    frontend_process = None
 
-    # Give backend a moment to start
-    time.sleep(2)
+    def signal_handler(signum, frame):
+        """Handle Ctrl+C by terminating both processes"""
+        print("\n🛑 Stopping servers...")
+        if backend_process:
+            backend_process.terminate()
+        if frontend_process:
+            frontend_process.terminate()
 
-    # Start frontend (this will block until Ctrl+C)
+        # Wait a bit for graceful shutdown
+        time.sleep(1)
+
+        if backend_process and backend_process.poll() is None:
+            backend_process.kill()
+        if frontend_process and frontend_process.poll() is None:
+            frontend_process.kill()
+
+        print("👋 Servers stopped")
+        sys.exit(0)
+
+    # Set up signal handler for Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     try:
-        run_frontend()
+        # Start backend server as subprocess
+        # Run from project root so it can import the app module
+        project_root = Path(__file__).parent.parent
+
+        # Set up environment with proper Python path
+        backend_env = os.environ.copy()
+        backend_env["PYTHONPATH"] = str(project_root)
+
+        backend_process = subprocess.Popen(
+            [sys.executable, "scripts/run_server.py"], cwd=project_root, env=backend_env
+        )
+
+        # Give backend a moment to start
+        time.sleep(2)
+
+        # Start frontend server as subprocess
+        frontend_dir = Path("frontend")
+        env = os.environ.copy()
+        env["BROWSER"] = "none"  # Prevent auto-opening browser
+
+        frontend_process = subprocess.Popen(
+            ["npm", "run", "dev"], cwd=frontend_dir, env=env
+        )
+
+        # Wait for both processes
+        while True:
+            # Check if either process has died
+            if backend_process.poll() is not None:
+                print("❌ Backend server stopped unexpectedly")
+                break
+            if frontend_process.poll() is not None:
+                print("❌ Frontend server stopped unexpectedly")
+                break
+
+            time.sleep(1)
+
     except KeyboardInterrupt:
-        print("\n👋 Servers stopped")
+        signal_handler(signal.SIGINT, None)
     except Exception as e:
         print(f"\n❌ Error: {e}")
+        signal_handler(signal.SIGTERM, None)
 
 
 if __name__ == "__main__":

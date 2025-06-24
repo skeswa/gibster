@@ -8,7 +8,7 @@ This directory contains all the utility scripts for the Gibster project.
 - **`main.py`** - Original scraping script that generates iCal files from Gibney rentals
 - **`run_server.py`** - Starts the FastAPI development server
 - **`run_dev.py`** - Development runner with environment checks
-- **`run_tests.py`** - Test runner with various options (unit, integration, coverage)
+- **`run_tests.py`** - Unified test runner for both backend (Python/pytest) and frontend (JavaScript/Jest) tests with various options (unit, integration, coverage)
 - **`run_worker.py`** - Celery worker for background tasks
 
 ### Setup Scripts
@@ -18,6 +18,41 @@ This directory contains all the utility scripts for the Gibster project.
 
 ### Testing Scripts
 - **`test_scraper.py`** - Test script for scraper functionality with Gibney credentials
+
+### Test Runner (`run_tests.py`)
+
+The unified test runner supports both backend and frontend testing:
+
+#### Available Options
+```bash
+# Run all tests (backend + frontend)
+python3 run_tests.py
+
+# Backend only
+python3 run_tests.py --backend-only
+
+# Frontend only  
+python3 run_tests.py --frontend-only
+
+# With coverage reports
+python3 run_tests.py --coverage
+
+# Verbose output
+python3 run_tests.py --verbose
+
+# Backend test types (unit/integration)
+python3 run_tests.py --backend-only --type unit
+python3 run_tests.py --backend-only --type integration
+```
+
+#### Test Detection
+- **Backend**: Automatically runs pytest for Python tests
+- **Frontend**: Automatically detects and runs Jest tests in `frontend/` directory
+- **Coverage**: Generates separate coverage reports for backend and frontend
+
+#### Coverage Reports
+- Backend: `htmlcov/index.html`
+- Frontend: `frontend/coverage/lcov-report/index.html`
 
 ## Usage
 

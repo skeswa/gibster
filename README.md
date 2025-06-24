@@ -99,20 +99,39 @@ docker-compose --env-file .env.production up -d
 
 ### Running Tests
 
+The test runner now supports both backend (Python) and frontend (JavaScript/TypeScript) tests:
+
 ```bash
 # Activate virtual environment first
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Run all tests with coverage
+# Run ALL tests (backend + frontend) with coverage
 python run_tests.py --coverage
 
-# Run specific test types
-python run_tests.py --type unit
-python run_tests.py --type integration
+# Run only backend tests
+python run_tests.py --backend-only --coverage
 
-# Using pytest directly
+# Run only frontend tests  
+python run_tests.py --frontend-only --coverage
+
+# Run specific backend test types
+python run_tests.py --backend-only --type unit
+python run_tests.py --backend-only --type integration
+
+# Run with verbose output
+python run_tests.py --verbose
+
+# Using pytest directly (backend only)
 pytest -v --cov=app
 ```
+
+The test runner automatically detects and runs:
+- **Backend tests**: Python tests using pytest
+- **Frontend tests**: React component tests using Jest + Testing Library
+
+**Coverage Reports:**
+- Backend: `htmlcov/index.html`
+- Frontend: `frontend/coverage/lcov-report/index.html`
 
 ### Frontend Development
 
@@ -362,7 +381,7 @@ docker-compose --env-file .env.production up -d
 1. Fork and create feature branch
 2. Set up development environment: `docker-compose up -d`
 3. Make changes and add tests
-4. Run tests: `python run_tests.py --coverage`
+4. Run tests: `python run_tests.py --coverage` (runs both backend + frontend)
 5. Submit pull request
 
 **Guidelines:**
@@ -457,7 +476,7 @@ python setup.py  # Automated setup
 # Edit .env with your settings
 docker-compose up -d
 
-# Run tests
+# Run tests (backend + frontend)
 python run_tests.py --verbose --coverage
 
 # Frontend development

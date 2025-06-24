@@ -7,9 +7,10 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from .database import Base
 
+
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -19,16 +20,20 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationship
     bookings = relationship("Booking", back_populates="user")
-    
+
     def __repr__(self):
         return f"<User {self.email}>"
 
+    def __str__(self):
+        return f"<User {self.email}>"
+
+
 class Booking(Base):
     __tablename__ = "bookings"
-    
+
     id = Column(String, primary_key=True)  # From Gibney (e.g., "a27Pb...")
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)  # e.g., "R-490015"
@@ -40,9 +45,9 @@ class Booking(Base):
     price = Column(Numeric(10, 2), nullable=True)
     record_url = Column(String, nullable=True)
     last_seen = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationship
     user = relationship("User", back_populates="bookings")
-    
+
     def __repr__(self):
-        return f"<Booking {self.name} - {self.studio}>" 
+        return f"<Booking {self.name} - {self.studio}>"
