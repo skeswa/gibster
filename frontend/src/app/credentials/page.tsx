@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { redirect } from 'next/navigation';
-import Credentials from '../../components/Credentials';
-import { useAuth } from '../providers/AuthProvider';
+import Credentials from '@/components/Credentials';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 export default function CredentialsPage() {
   const { user } = useAuth();

@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { redirect } from 'next/navigation';
-import Login from '../../components/Login';
-import { useAuth } from '../providers/AuthProvider';
+import Login from '@/components/Login';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 export default function LoginPage() {
   const { user, login } = useAuth();

@@ -1,21 +1,25 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import Header from '../components/Header';
+import Header from '@/components/Header';
 
 const mockUser = {
   id: '1',
   email: 'test@example.com',
 };
 
-const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
-};
+// Mock Next.js router
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
 
 describe('Header Component', () => {
   test('renders login and register links when user is not logged in', () => {
     const mockLogout = jest.fn();
-    renderWithRouter(<Header user={null} onLogout={mockLogout} />);
+    render(<Header user={null} onLogout={mockLogout} />);
 
     expect(screen.getByText('Gibster')).toBeInTheDocument();
     expect(screen.getByText('Login')).toBeInTheDocument();
@@ -24,7 +28,7 @@ describe('Header Component', () => {
 
   test('renders user info and navigation when user is logged in', () => {
     const mockLogout = jest.fn();
-    renderWithRouter(<Header user={mockUser} onLogout={mockLogout} />);
+    render(<Header user={mockUser} onLogout={mockLogout} />);
 
     expect(screen.getByText('Gibster')).toBeInTheDocument();
     expect(screen.getByText(`Welcome, ${mockUser.email}`)).toBeInTheDocument();
@@ -35,7 +39,7 @@ describe('Header Component', () => {
 
   test('calls onLogout when logout button is clicked', () => {
     const mockLogout = jest.fn();
-    renderWithRouter(<Header user={mockUser} onLogout={mockLogout} />);
+    render(<Header user={mockUser} onLogout={mockLogout} />);
 
     const logoutButton = screen.getByText('Logout');
     fireEvent.click(logoutButton);

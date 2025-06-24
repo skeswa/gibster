@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { redirect } from 'next/navigation';
-import Register from '../../components/Register';
-import { useAuth } from '../providers/AuthProvider';
+import Register from '@/components/Register';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 export default function RegisterPage() {
   const { user, login } = useAuth();

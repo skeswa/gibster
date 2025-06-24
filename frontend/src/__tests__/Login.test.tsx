@@ -1,11 +1,15 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import Login from '../components/Login';
+import Login from '@/components/Login';
 
-const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
-};
+// Mock Next.js router
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -17,7 +21,7 @@ describe('Login Component', () => {
 
   test('renders login form with email and password fields', () => {
     const mockOnLogin = jest.fn();
-    renderWithRouter(<Login onLogin={mockOnLogin} />);
+    render(<Login onLogin={mockOnLogin} />);
 
     expect(screen.getByText('Login to Gibster')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
@@ -28,7 +32,7 @@ describe('Login Component', () => {
 
   test('updates form fields when user types', () => {
     const mockOnLogin = jest.fn();
-    renderWithRouter(<Login onLogin={mockOnLogin} />);
+    render(<Login onLogin={mockOnLogin} />);
 
     const emailInput = screen.getByLabelText('Email') as HTMLInputElement;
     const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
@@ -42,7 +46,7 @@ describe('Login Component', () => {
 
   test('shows loading state when form is submitted', async () => {
     const mockOnLogin = jest.fn();
-    renderWithRouter(<Login onLogin={mockOnLogin} />);
+    render(<Login onLogin={mockOnLogin} />);
 
     // Mock successful login response
     (fetch as jest.MockedFunction<typeof fetch>)
@@ -69,7 +73,7 @@ describe('Login Component', () => {
 
   test('displays error message when login fails', async () => {
     const mockOnLogin = jest.fn();
-    renderWithRouter(<Login onLogin={mockOnLogin} />);
+    render(<Login onLogin={mockOnLogin} />);
 
     // Mock failed login response
     (fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({

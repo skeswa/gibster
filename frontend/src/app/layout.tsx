@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import '../index.css';
-import { AuthProvider } from './providers/AuthProvider';
-import Header from '../components/Header';
-import { useAuth } from './providers/AuthProvider';
+import '@/index.css';
+import { AuthProvider } from '@/app/providers/AuthProvider';
+import Header from '@/components/Header';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 function AppContent({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
