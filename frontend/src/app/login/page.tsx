@@ -1,16 +1,14 @@
-'use client';
-
-import React from 'react';
 import { redirect } from 'next/navigation';
-import Login from '@/components/Login';
-import { useAuth } from '@/app/providers/AuthProvider';
+import { getServerSession } from '@/lib/auth';
+import LoginWrapper from '@/components/LoginWrapper';
 
-export default function LoginPage() {
-  const { user, login } = useAuth();
+export default async function LoginPage() {
+  const user = await getServerSession();
 
+  // If user is already logged in, redirect to dashboard
   if (user) {
     redirect('/dashboard');
   }
 
-  return <Login onLogin={login} />;
+  return <LoginWrapper />;
 }

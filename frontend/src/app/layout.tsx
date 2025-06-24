@@ -1,38 +1,28 @@
-'use client';
-
 import React from 'react';
 import '@/index.css';
 import { AuthProvider } from '@/app/providers/AuthProvider';
-import Header from '@/components/Header';
-import { useAuth } from '@/app/providers/AuthProvider';
+import ServerHeader from '@/components/ServerHeader';
+import { getServerSession } from '@/lib/auth';
 
-function AppContent({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+export const metadata = {
+  title: 'Gibster - Gibney Calendar Sync',
+  description:
+    'Gibster - Sync your Gibney dance studio bookings with your calendar',
+  viewport: 'width=device-width, initial-scale=1',
+  themeColor: '#000000',
+};
 
-  return (
-    <div className='App'>
-      <Header user={user} onLogout={logout} />
-      <main className='main-content'>{children}</main>
-    </div>
-  );
-}
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Get user session on the server
+  const user = await getServerSession();
+
   return (
     <html lang='en'>
       <head>
-        <meta charSet='utf-8' />
-        <meta name='viewport' content='width=device-width, initial-scale=1' />
-        <meta name='theme-color' content='#000000' />
-        <meta
-          name='description'
-          content='Gibster - Sync your Gibney dance studio bookings with your calendar'
-        />
-        <title>Gibster - Gibney Calendar Sync</title>
         <style>{`
           body {
             margin: 0;
@@ -53,8 +43,11 @@ export default function RootLayout({
       </head>
       <body>
         <div id='root'>
-          <AuthProvider>
-            <AppContent>{children}</AppContent>
+          <AuthProvider initialUser={user}>
+            <div className='App'>
+              <ServerHeader user={user} />
+              <main className='main-content'>{children}</main>
+            </div>
           </AuthProvider>
         </div>
       </body>

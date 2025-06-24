@@ -1,4 +1,4 @@
-import { NextConfig } from 'next'
+import { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   async rewrites() {
@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: 'http://localhost:8000/api/:path*',
       },
-    ]
+    ];
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -15,6 +15,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-}
+};
 
-export default nextConfig 
+export default nextConfig;

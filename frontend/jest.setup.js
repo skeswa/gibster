@@ -1,17 +1,17 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 // Mock Next.js dynamic imports
-jest.mock('next/dynamic', () => (func) => {
+jest.mock('next/dynamic', () => func => {
   const DynamicComponent = (...args) => {
-    const component = func()
+    const component = func();
     if (component.then) {
-      return component.then((mod) => mod.default || mod)
+      return component.then(mod => mod.default || mod);
     }
-    return component.default || component
-  }
-  DynamicComponent.displayName = 'DynamicComponent'
-  return DynamicComponent
-})
+    return component.default || component;
+  };
+  DynamicComponent.displayName = 'DynamicComponent';
+  return DynamicComponent;
+});
 
 // Mock Next.js router
 jest.mock('next/router', () => ({
@@ -32,9 +32,9 @@ jest.mock('next/router', () => ({
         off: jest.fn(),
         emit: jest.fn(),
       },
-    }
+    };
   },
-}))
+}));
 
 // Mock environment variables
-process.env.NEXT_PUBLIC_API_BASE = 'http://localhost:8000' 
+process.env.NEXT_PUBLIC_API_BASE = 'http://localhost:8000';

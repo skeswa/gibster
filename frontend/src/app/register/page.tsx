@@ -1,16 +1,14 @@
-'use client';
-
-import React from 'react';
 import { redirect } from 'next/navigation';
-import Register from '@/components/Register';
-import { useAuth } from '@/app/providers/AuthProvider';
+import { getServerSession } from '@/lib/auth';
+import RegisterWrapper from '@/components/RegisterWrapper';
 
-export default function RegisterPage() {
-  const { user, login } = useAuth();
+export default async function RegisterPage() {
+  const user = await getServerSession();
 
+  // If user is already logged in, redirect to dashboard
   if (user) {
     redirect('/dashboard');
   }
 
-  return <Register onLogin={login} />;
+  return <RegisterWrapper />;
 }

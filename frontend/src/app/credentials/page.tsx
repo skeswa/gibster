@@ -1,13 +1,11 @@
-'use client';
-
-import React from 'react';
 import { redirect } from 'next/navigation';
+import { getServerSession } from '@/lib/auth';
 import Credentials from '@/components/Credentials';
-import { useAuth } from '@/app/providers/AuthProvider';
 
-export default function CredentialsPage() {
-  const { user } = useAuth();
+export default async function CredentialsPage() {
+  const user = await getServerSession();
 
+  // Server-side authentication check
   if (!user) {
     redirect('/login');
   }

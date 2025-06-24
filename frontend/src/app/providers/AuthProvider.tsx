@@ -26,14 +26,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: ReactNode;
+  initialUser?: User | null;
+}) {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [loading, setLoading] = useState<boolean>(false);
   const router = useRouter();
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    // Only check auth status if we don't have initial user data
+    if (initialUser === null) {
+      checkAuthStatus();
+    }
+  }, [initialUser]);
 
   const checkAuthStatus = async (): Promise<void> => {
     const token = localStorage.getItem('token');
@@ -54,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         localStorage.removeItem('token');
+        // Also remove from cookies
+        document.cookie =
+          'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         setUser(null);
       } finally {
         setLoading(false);
@@ -64,14 +76,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = (token: string, userData: User): void => {
+    // Store in localStorage for client-side
     localStorage.setItem('token', token);
+
+    // Store in cookies for server-side
+    document.cookie = `token=${token}; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Strict; Secure=${process.env.NODE_ENV === 'production'}`;
+
     setUser(userData);
   };
 
   const logout = (): void => {
     localStorage.removeItem('token');
+
+    // Remove token from cookies
+    document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
     setUser(null);
     router.push('/login');
+
+    // Force a hard refresh to clear any cached data
+    window.location.reload();
   };
 
   return (

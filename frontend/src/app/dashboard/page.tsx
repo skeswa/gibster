@@ -1,13 +1,11 @@
-'use client';
-
-import React from 'react';
 import { redirect } from 'next/navigation';
+import { getServerSession } from '@/lib/auth';
 import Dashboard from '@/components/Dashboard';
-import { useAuth } from '@/app/providers/AuthProvider';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
+export default async function DashboardPage() {
+  const user = await getServerSession();
 
+  // Server-side authentication check
   if (!user) {
     redirect('/login');
   }

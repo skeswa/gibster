@@ -1,31 +1,13 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { getServerSession } from '@/lib/auth';
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/providers/AuthProvider';
+export default async function HomePage() {
+  const user = await getServerSession();
 
-export default function HomePage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className='loading'>
-        <div className='spinner'></div>
-        <p>Loading...</p>
-      </div>
-    );
+  // Server-side redirect based on authentication status
+  if (user) {
+    redirect('/dashboard');
+  } else {
+    redirect('/login');
   }
-
-  return null;
 }

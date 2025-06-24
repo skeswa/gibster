@@ -6,7 +6,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 interface User {
   id: string;
   email: string;
-  [key: string]: any;
 }
 
 interface LoginProps {
