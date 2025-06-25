@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Numeric, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
 
 from .database import Base
 

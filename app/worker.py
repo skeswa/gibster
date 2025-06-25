@@ -1,6 +1,6 @@
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from celery import Celery
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
@@ -40,33 +40,35 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gibster_dev.db")
 if "sqlite" in DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
-        connect_args={
-            "check_same_thread": False,
-            "timeout": 20
-        },
-        pool_pre_ping=True
+        connect_args={"check_same_thread": False, "timeout": 20},
+        pool_pre_ping=True,
     )
 else:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 def sync_scrape_all_users():
     """Synchronous version for when Celery is not available"""
     db = SessionLocal()
     try:
         # Get all users with Gibney credentials
-        users = db.query(User).filter(
-            User.gibney_email.isnot(None),
-            User.gibney_password.isnot(None),
-            User.is_active == True
-        ).all()
-        
+        users = (
+            db.query(User)
+            .filter(
+                User.gibney_email.isnot(None),
+                User.gibney_password.isnot(None),
+                User.is_active.is_(True),
+            )
+            .all()
+        )
+
         logger.info(f"Starting scraping for {len(users)} users")
-        
+
         success_count = 0
         error_count = 0
-        
+
         for user in users:
             try:
                 scrape_user_bookings(db, user)
@@ -75,22 +77,26 @@ def sync_scrape_all_users():
             except Exception as e:
                 error_count += 1
                 logger.error(f"Failed to scrape bookings for {user.email}: {e}")
-        
-        logger.info(f"Scraping completed: {success_count} successful, {error_count} errors")
-        
+
+        logger.info(
+            f"Scraping completed: {success_count} successful, {error_count} errors"
+        )
+
         return {
             "total_users": len(users),
             "successful": success_count,
-            "errors": error_count
+            "errors": error_count,
         }
-    
+
     except Exception as e:
         logger.error(f"Error in sync_scrape_all_users: {e}")
         raise
     finally:
         db.close()
 
+
 if USE_CELERY and celery_app:
+
     @celery_app.task
     def scrape_all_users():
         """Periodic task to scrape bookings for all users"""
@@ -104,12 +110,12 @@ if USE_CELERY and celery_app:
             user = db.query(User).filter(User.id == user_id).first()
             if not user:
                 raise ValueError(f"User with ID {user_id} not found")
-            
+
             scrape_user_bookings(db, user)
             logger.info(f"Successfully scraped bookings for user {user.email}")
-            
+
             return {"message": f"Scraped bookings for {user.email}"}
-        
+
         except Exception as e:
             logger.error(f"Error scraping user {user_id}: {e}")
             raise
@@ -118,16 +124,20 @@ if USE_CELERY and celery_app:
 
     # Configure periodic tasks
     celery_app.conf.beat_schedule = {
-        'scrape-all-users': {
-            'task': 'app.worker.scrape_all_users',
-            'schedule': timedelta(hours=2),  # Run every 2 hours
+        "scrape-all-users": {
+            "task": "app.worker.scrape_all_users",
+            "schedule": timedelta(hours=2),  # Run every 2 hours
         },
     }
 
-    celery_app.conf.timezone = 'UTC'
+    celery_app.conf.timezone = "UTC"
 
 if __name__ == "__main__":
     if USE_CELERY and celery_app:
         celery_app.start()
     else:
-        logger.error("Celery not available. Use 'python -c \"from app.worker import sync_scrape_all_users; sync_scrape_all_users()\"' for manual scraping") 
+        logger.error(
+            "Celery not available. Use 'python -c \"from app.worker import "
+            "sync_scrape_all_users; sync_scrape_all_users()\"' for manual "
+            "scraping"
+        )

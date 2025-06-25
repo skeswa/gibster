@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Union, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 

@@ -1,6 +1,5 @@
-import os
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, cast
 from fastapi import FastAPI, Depends, HTTPException, status, Response, Request
 from fastapi.security import (
     HTTPBearer,
@@ -9,6 +8,7 @@ from fastapi.security import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import uuid
 
 from .database import get_db, engine
 from .models import Base, User, Booking
@@ -36,7 +36,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Gibster",
-    description="A service to synchronize Gibney dance space bookings with personal calendars",
+    description=(
+        "A service to synchronize Gibney dance space bookings "
+        "with personal calendars"
+    ),
     version="1.0.0",
 )
 
@@ -118,7 +121,9 @@ async def login(
     """Log in and receive a JWT token"""
     user = db.query(User).filter(User.email == form_data.username).first()
 
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(
+        form_data.password, cast(str, user.password_hash)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -145,15 +150,16 @@ async def update_credentials(
         encrypted_email = encrypt_credential(credentials.gibney_email)
         encrypted_password = encrypt_credential(credentials.gibney_password)
 
-        current_user.gibney_email = encrypted_email
-        current_user.gibney_password = encrypted_password
-        current_user.updated_at = datetime.utcnow()
+        # Update user attributes
+        setattr(current_user, "gibney_email", encrypted_email)
+        setattr(current_user, "gibney_password", encrypted_password)
+        setattr(current_user, "updated_at", datetime.utcnow())
 
         db.commit()
 
         return {"message": "Credentials updated successfully"}
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update credentials",
@@ -166,11 +172,10 @@ async def get_calendar_url(
 ):
     """Get the user's unique calendar subscription URL"""
     base_url = str(request.base_url).rstrip("/")
-    calendar_url = f"{base_url}/calendar/{current_user.calendar_uuid}.ics"
+    calendar_uuid = cast(uuid.UUID, current_user.calendar_uuid)
+    calendar_url = f"{base_url}/calendar/{calendar_uuid}.ics"
 
-    return CalendarUrl(
-        calendar_url=calendar_url, calendar_uuid=current_user.calendar_uuid
-    )
+    return CalendarUrl(calendar_url=calendar_url, calendar_uuid=calendar_uuid)
 
 
 @app.get("/api/v1/user/bookings", response_model=List[BookingResponse])
@@ -187,7 +192,18 @@ async def sync_bookings(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Manually trigger booking synchronization"""
-    if not current_user.gibney_email or not current_user.gibney_password:
+    gibney_email = (
+        cast(str, current_user.gibney_email)
+        if getattr(current_user, "gibney_email", None)
+        else None
+    )
+    gibney_password = (
+        cast(str, current_user.gibney_password)
+        if getattr(current_user, "gibney_password", None)
+        else None
+    )
+
+    if not gibney_email or not gibney_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Gibney credentials not set. Please update your credentials first.",
@@ -225,17 +241,21 @@ async def get_calendar_feed(calendar_uuid: str, db: Session = Depends(get_db)):
             content=calendar_content,
             media_type="text/calendar",
             headers={
-                "Content-Disposition": f"attachment; filename=gibney-bookings-{calendar_uuid}.ics",
+                "Content-Disposition": (
+                    f"attachment; filename=gibney-bookings-" f"{calendar_uuid}.ics"
+                ),
                 "Cache-Control": "no-cache, must-revalidate",
                 "Pragma": "no-cache",
             },
         )
 
     except ValueError:
+        # Handle invalid UUID or calendar not found
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Calendar not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Calendar not found",
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate calendar",

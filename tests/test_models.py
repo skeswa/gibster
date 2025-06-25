@@ -104,10 +104,10 @@ class TestBookingModel:
         test_db.refresh(booking)
 
         assert str(booking.id) == "test-booking-1"
-        assert booking.user_id == user.id
+        assert str(booking.user_id) == str(user.id)
         assert str(booking.name) == "R-490015"
         assert str(booking.studio) == "Studio A"
-        assert booking.price == 50.00
+        assert str(booking.price) == "50.00"
         assert booking.last_seen is not None
 
     def test_booking_user_relationship(self, test_db):
