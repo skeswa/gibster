@@ -18,9 +18,10 @@ class TestUserModel:
         )
         test_db.add(user)
         test_db.commit()
+        test_db.refresh(user)
 
         assert user.id is not None
-        assert user.email == "test@example.com"
+        assert str(user.email) == "test@example.com"
         assert user.calendar_uuid is not None
         assert user.created_at is not None
         assert user.updated_at is not None
@@ -55,8 +56,10 @@ class TestUserModel:
         test_db.add(user1)
         test_db.add(user2)
         test_db.commit()
+        test_db.refresh(user1)
+        test_db.refresh(user2)
 
-        assert user1.calendar_uuid != user2.calendar_uuid
+        assert str(user1.calendar_uuid) != str(user2.calendar_uuid)
 
     def test_user_repr(self, test_db):
         """Test user string representation"""
@@ -65,6 +68,7 @@ class TestUserModel:
         )
         test_db.add(user)
         test_db.commit()
+        test_db.refresh(user)
 
         assert str(user) == f"<User {user.email}>"
 
@@ -97,11 +101,12 @@ class TestBookingModel:
         )
         test_db.add(booking)
         test_db.commit()
+        test_db.refresh(booking)
 
-        assert booking.id == "test-booking-1"
+        assert str(booking.id) == "test-booking-1"
         assert booking.user_id == user.id
-        assert booking.name == "R-490015"
-        assert booking.studio == "Studio A"
+        assert str(booking.name) == "R-490015"
+        assert str(booking.studio) == "Studio A"
         assert booking.price == 50.00
         assert booking.last_seen is not None
 
@@ -273,6 +278,6 @@ class TestBookingModel:
         test_db.add(booking)
         test_db.commit()
 
-        assert booking.id == "minimal-booking"
+        assert str(booking.id) == "minimal-booking"
         assert booking.price is None
         assert booking.record_url is None
