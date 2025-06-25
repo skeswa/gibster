@@ -17,6 +17,85 @@ logger = logging.getLogger(__name__)
 LOGIN_URL = "https://gibney.my.site.com/s/login"
 RENTALS_URL = "https://gibney.my.site.com/s/booking-item"
 
+def parse_booking_row(row_html: str) -> Dict[str, Any]:
+    """Parse a booking row from HTML and extract booking data"""
+    soup = BeautifulSoup(row_html, 'html.parser')
+    
+    # Find cells - this is a mock implementation based on expected structure
+    cells = soup.find_all(['td', 'th'])
+    
+    if len(cells) < 7:
+        raise ValueError("Invalid row format - not enough cells")
+    
+    # Extract link and name from first cell
+    link_cell = cells[0]
+    link = link_cell.find('a')
+    if not link:
+        raise ValueError("No booking link found")
+    
+    name = link.get_text(strip=True)
+    href = link.get('href', '')
+    
+    # Extract booking ID from href
+    id_match = re.search(r'Id=([a-zA-Z0-9]{15,18})', href)
+    booking_id = id_match.group(1) if id_match else f"unknown_{name}"
+    
+    # Parse datetime strings (assuming format like "Jan 15, 2024 10:00 AM")
+    start_time_str = cells[1].get_text(strip=True)
+    end_time_str = cells[2].get_text(strip=True)
+    
+    try:
+        start_time = datetime.strptime(start_time_str, "%b %d, %Y %I:%M %p")
+        end_time = datetime.strptime(end_time_str, "%b %d, %Y %I:%M %p")
+    except ValueError:
+        # If parsing fails, use a default format
+        start_time = datetime.now()
+        end_time = datetime.now()
+    
+    studio = cells[3].get_text(strip=True)
+    location = cells[4].get_text(strip=True)
+    status = cells[5].get_text(strip=True)
+    
+    # Parse price
+    price_str = cells[6].get_text(strip=True) if len(cells) > 6 else "$0.00"
+    price = 0.0
+    if price_str.startswith('$'):
+        try:
+            price = float(price_str[1:].replace(',', ''))
+        except ValueError:
+            price = 0.0
+    
+    # Build full URL
+    record_url = f"https://gibney.my.site.com{href}" if href.startswith('/') else href
+    
+    return {
+        "id": booking_id,
+        "name": name,
+        "start_time": start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "end_time": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "studio": studio,
+        "location": location,
+        "status": status,
+        "price": price,
+        "record_url": record_url
+    }
+
+def parse_price(price_str: str) -> float:
+    """Parse price string and return float value"""
+    if not price_str or price_str.lower() == "free":
+        return 0.0
+    
+    if price_str.startswith("$"):
+        try:
+            return float(price_str[1:].replace(',', ''))
+        except ValueError:
+            return 0.0
+    
+    try:
+        return float(price_str)
+    except ValueError:
+        return 0.0
+
 class GibneyScrapingError(Exception):
     """Raised when scraping fails"""
     pass

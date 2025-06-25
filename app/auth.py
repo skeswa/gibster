@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
@@ -33,6 +33,11 @@ def get_password_hash(password: str) -> str:
     """Hash a password"""
     return pwd_context.hash(password)
 
+# Alias for test compatibility
+def hash_password(password: str) -> str:
+    """Hash a password (alias for get_password_hash)"""
+    return get_password_hash(password)
+
 def encrypt_credential(credential: str) -> str:
     """Encrypt a credential for secure storage"""
     return fernet.encrypt(credential.encode()).decode()
@@ -41,9 +46,14 @@ def decrypt_credential(encrypted_credential: str) -> str:
     """Decrypt a credential"""
     return fernet.decrypt(encrypted_credential.encode()).decode()
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: Union[str, Dict[str, Any]], expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token"""
-    to_encode = data.copy()
+    # Handle both old format (user_id string) and new format (dict)
+    if isinstance(data, str):
+        to_encode: Dict[str, Any] = {"sub": data}
+    else:
+        to_encode = data.copy()
+        
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -52,13 +62,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str) -> Optional[str]:
-    """Verify a JWT token and return the subject"""
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify a JWT token and return the payload"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            return None
-        return email
+        return payload
     except JWTError:
         return None 

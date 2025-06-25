@@ -22,6 +22,9 @@ class User(Base):
     
     # Relationship
     bookings = relationship("Booking", back_populates="user")
+    
+    def __repr__(self):
+        return f"<User {self.email}>"
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -35,8 +38,11 @@ class Booking(Base):
     location = Column(String, nullable=False)
     status = Column(String, nullable=False)
     price = Column(Numeric(10, 2), nullable=True)
-    record_url = Column(String, nullable=False)
+    record_url = Column(String, nullable=True)
     last_seen = Column(DateTime, default=datetime.utcnow)
     
     # Relationship
-    user = relationship("User", back_populates="bookings") 
+    user = relationship("User", back_populates="bookings")
+    
+    def __repr__(self):
+        return f"<Booking {self.name} - {self.studio}>" 
