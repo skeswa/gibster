@@ -129,7 +129,7 @@ python3 setup.py
 ## Path Adjustments
 
 The scripts have been updated to work correctly from their new location:
-- Path references to `resources/` and `app/` directories are properly adjusted
+- Path references to `resources/` and `backend/` directories are properly adjusted
 - Import statements have been updated to work from the new location
 - All relative paths maintain compatibility with the project structure
 

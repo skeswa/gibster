@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Booking, User
+from backend.models import Booking, User
 
 
 @pytest.mark.integration

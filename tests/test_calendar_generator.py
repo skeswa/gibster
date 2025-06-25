@@ -2,8 +2,8 @@ from datetime import datetime
 
 import pytest
 
-from app.calendar_generator import generate_ical_calendar
-from app.models import Booking, User
+from backend.calendar_generator import generate_ical_calendar
+from backend.models import Booking, User
 
 
 @pytest.mark.unit

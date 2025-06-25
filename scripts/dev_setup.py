@@ -165,7 +165,7 @@ def initialize_database():
         python_path = "venv/bin/python"
 
     run_command(
-        f"{python_path} -c \"from app.database import engine; from app.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')\"",
+        f"{python_path} -c \"from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')\"",
         "Initializing SQLite database",
     )
 
@@ -211,7 +211,7 @@ def print_next_steps(frontend_setup_success):
 
     print("\n💡 To run background tasks manually (since Redis is disabled):")
     print(
-        '   python -c "from app.worker import sync_scrape_all_users; sync_scrape_all_users()"'
+        '   python -c "from backend.worker import sync_scrape_all_users; sync_scrape_all_users()"'
     )
 
 

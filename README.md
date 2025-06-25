@@ -356,7 +356,7 @@ docker-compose --env-file .env.production up -d
 
 **Scraper login fails:** Verify Gibney credentials, check site changes, ensure Playwright installed with `python -m playwright install chromium`
 
-**Calendar not updating (local dev):** Manual sync available via API at `/api/v1/user/sync` or run `python -c "from app.worker import sync_scrape_all_users; sync_scrape_all_users()"`
+**Calendar not updating (local dev):** Manual sync available via API at `/api/v1/user/sync` or run `python -c "from backend.worker import sync_scrape_all_users; sync_scrape_all_users()"`
 
 **Calendar not updating (Docker):** Check worker logs, verify Redis connection, restart worker
 

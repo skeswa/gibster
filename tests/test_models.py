@@ -5,8 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from app.auth import get_password_hash
-from app.models import Booking, User
+from backend.auth import get_password_hash
+from backend.models import Booking, User
 
 
 @pytest.mark.unit

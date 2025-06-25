@@ -45,7 +45,7 @@ print_status "Checking Python code formatting..."
 
 if command -v black &> /dev/null; then
     print_status "Checking black formatting..."
-    if ! black app/ tests/ scripts/ --check --line-length 88 --target-version py38; then
+    if ! black backend/ tests/ scripts/ --check --line-length 88 --target-version py38; then
         print_error "Python code is not properly formatted with black"
         FORMATTING_ISSUES=1
     else
@@ -58,7 +58,7 @@ fi
 
 if command -v isort &> /dev/null; then
     print_status "Checking isort formatting..."
-    if ! isort app/ tests/ scripts/ --profile black --check-only; then
+    if ! isort backend/ tests/ scripts/ --profile black --check-only; then
         print_error "Python imports are not properly sorted with isort"
         FORMATTING_ISSUES=1
     else

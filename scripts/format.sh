@@ -42,7 +42,7 @@ print_status "Formatting Python code with black and isort..."
 
 if command -v black &> /dev/null; then
     print_status "Running black on Python files..."
-    black app/ tests/ scripts/ --line-length 88 --target-version py38 || {
+    black backend/ tests/ scripts/ --line-length 88 --target-version py38 || {
         print_warning "Black formatting completed with warnings"
     }
     print_success "Black formatting completed"
@@ -53,7 +53,7 @@ fi
 
 if command -v isort &> /dev/null; then
     print_status "Running isort on Python files..."
-    isort app/ tests/ scripts/ --profile black || {
+    isort backend/ tests/ scripts/ --profile black || {
         print_warning "isort completed with warnings"
     }
     print_success "isort formatting completed"

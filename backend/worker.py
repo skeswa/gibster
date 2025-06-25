@@ -138,7 +138,7 @@ if __name__ == "__main__":
         celery_app.start()
     else:
         logger.error(
-            "Celery not available. Use 'python -c \"from app.worker import "
+            "Celery not available. Use 'python -c \"from backend.worker import "
             "sync_scrape_all_users; sync_scrape_all_users()\"' for manual "
             "scraping"
         )

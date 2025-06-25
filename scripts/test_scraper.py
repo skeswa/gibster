@@ -10,10 +10,10 @@ import sys
 from dotenv import load_dotenv
 
 # Add the app directory to the path so we can import modules
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "app"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend"))
 
-from app.calendar_generator import generate_ical_calendar
-from app.scraper import GibneyScraper
+from backend.calendar_generator import generate_ical_calendar
+from backend.scraper import GibneyScraper
 
 
 def test_scraper():

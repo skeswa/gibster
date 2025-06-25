@@ -24,7 +24,7 @@ def main():
     print(f"📚 API documentation available at http://{host}:{port}/docs")
 
     uvicorn.run(
-        "app.main:app",  # Use import string instead of app object for reload support
+        "backend.main:app",  # Use import string instead of app object for reload support
         host=host,
         port=port,
         reload=reload,  # Enable auto-reload for development

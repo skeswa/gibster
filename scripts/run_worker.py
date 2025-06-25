@@ -7,7 +7,7 @@ Run with: python run_worker.py
 import os
 import sys
 
-from app.worker import celery_app
+from backend.worker import celery_app
 
 if __name__ == "__main__":
     # Run the celery worker

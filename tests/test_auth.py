@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.auth import (
+from backend.auth import (
     create_access_token,
     get_password_hash,
     verify_password,

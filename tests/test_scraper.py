@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from app.scraper import GibneyScraper, GibneyScrapingError
+from backend.scraper import GibneyScraper, GibneyScrapingError
 
 
 @pytest.mark.unit

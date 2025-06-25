@@ -13,7 +13,7 @@ import threading
 import time
 from pathlib import Path
 
-# Add parent directory to Python path so we can import from app module
+# Add parent directory to Python path so we can import from backend module
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
@@ -53,8 +53,8 @@ def check_env_file():
 def check_database():
     """Check if database exists and is accessible"""
     try:
-        from app.database import engine
-        from app.models import Base
+        from backend.database import engine
+        from backend.models import Base
 
         # Test database connection
         with engine.connect() as conn:
