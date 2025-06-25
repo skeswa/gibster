@@ -1,10 +1,11 @@
-import os
 import logging
+import os
 from datetime import timedelta
+
 from celery import Celery
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from .models import User
 from .scraper import scrape_user_bookings

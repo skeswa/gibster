@@ -1,5 +1,7 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
 from app.scraper import GibneyScraper, GibneyScrapingError
 
 

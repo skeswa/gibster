@@ -2,10 +2,10 @@
 """
 Simple test runner for Gibster - supports both backend and frontend tests
 """
-import sys
-import subprocess
 import argparse
 import os
+import subprocess
+import sys
 
 
 def run_command(cmd, cwd=None):

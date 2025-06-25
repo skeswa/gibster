@@ -1,13 +1,14 @@
-import re
 import logging
+import re
 from datetime import datetime
-from typing import List, Dict, Any, Optional, cast
+from typing import Any, Dict, List, Optional, cast
+
 from bs4 import BeautifulSoup, Tag
-from playwright.sync_api import sync_playwright, Page, Browser
+from playwright.sync_api import Browser, Page, sync_playwright
 from sqlalchemy.orm import Session
 
-from .models import User, Booking
 from .auth import decrypt_credential
+from .models import Booking, User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

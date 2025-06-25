@@ -1,10 +1,12 @@
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
-from app.models import User, Booking
+from sqlalchemy.orm import sessionmaker
+
 from app.auth import get_password_hash
+from app.models import Booking, User
 
 
 @pytest.mark.unit

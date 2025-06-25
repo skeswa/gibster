@@ -1,6 +1,59 @@
-# Gibster Scripts
+# Scripts
 
-This directory contains all the utility scripts for the Gibster project.
+This directory contains utility scripts for the Gibster project.
+
+## Code Formatting
+
+### `format.sh`
+Formats all code in the repository using appropriate tools for each language:
+- **Python**: Uses `black` and `isort` for code formatting and import sorting
+- **Frontend**: Uses `prettier` for TypeScript/JavaScript/CSS formatting
+- **Shell scripts**: Uses `shfmt` (optional) for shell script formatting
+
+**Usage:**
+```bash
+./scripts/format.sh
+```
+
+**Prerequisites:**
+- Python packages: `black` and `isort` (automatically installed with `pip install -r requirements.txt`)
+- Node.js and npm (for frontend formatting)
+- `shfmt` (optional, for shell script formatting)
+
+### `format-check.sh`
+Checks if all code is properly formatted without making any changes. Useful for CI/CD pipelines.
+
+**Usage:**
+```bash
+./scripts/format-check.sh
+```
+
+Returns exit code 0 if all code is properly formatted, exit code 1 if formatting issues are found.
+
+## Configuration
+
+- **Python formatting**: Configured in `pyproject.toml`
+- **Frontend formatting**: Configured in `frontend/.prettierrc`
+
+## Integration with Development Workflow
+
+### Pre-commit Hook
+You can add the format script as a pre-commit hook:
+
+```bash
+# In .git/hooks/pre-commit
+#!/bin/bash
+./scripts/format.sh
+```
+
+### CI/CD Integration
+Use the format-check script in your CI pipeline to ensure all code is properly formatted:
+
+```yaml
+# Example GitHub Actions step
+- name: Check code formatting
+  run: ./scripts/format-check.sh
+```
 
 ## Scripts Overview
 

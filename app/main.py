@@ -1,34 +1,35 @@
+import uuid
 from datetime import datetime, timedelta
 from typing import List, cast
-from fastapi import FastAPI, Depends, HTTPException, status, Response, Request
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import (
-    HTTPBearer,
     HTTPAuthorizationCredentials,
+    HTTPBearer,
     OAuth2PasswordRequestForm,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-import uuid
 
-from .database import get_db, engine
-from .models import Base, User, Booking
+from .auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    encrypt_credential,
+    get_password_hash,
+    verify_password,
+    verify_token,
+)
+from .calendar_generator import get_user_calendar
+from .database import engine, get_db
+from .models import Base, Booking, User
 from .schemas import (
+    BookingResponse,
+    CalendarUrl,
+    Token,
     UserCreate,
     UserCredentials,
     UserResponse,
-    Token,
-    BookingResponse,
-    CalendarUrl,
 )
-from .auth import (
-    verify_password,
-    get_password_hash,
-    create_access_token,
-    verify_token,
-    encrypt_credential,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-)
-from .calendar_generator import get_user_calendar
 from .scraper import scrape_user_bookings
 
 # Create database tables

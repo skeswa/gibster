@@ -6,11 +6,11 @@ Quick script to start both backend and frontend development servers.
 """
 
 import os
-import sys
-import subprocess
-import time
 import signal
+import subprocess
+import sys
 import threading
+import time
 from pathlib import Path
 
 # Add parent directory to Python path so we can import from app module

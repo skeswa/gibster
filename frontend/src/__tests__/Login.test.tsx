@@ -1,5 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import Login from '@/components/Login';
 
 // Mock Next.js router
@@ -51,12 +57,12 @@ describe('Login Component', () => {
     // Create a promise we can control
     let resolveTokenRequest!: (value: any) => void;
     let resolveProfileRequest!: (value: any) => void;
-    
-    const tokenPromise = new Promise((resolve) => {
+
+    const tokenPromise = new Promise(resolve => {
       resolveTokenRequest = resolve;
     });
-    
-    const profilePromise = new Promise((resolve) => {
+
+    const profilePromise = new Promise(resolve => {
       resolveProfileRequest = resolve;
     });
 
@@ -71,7 +77,7 @@ describe('Login Component', () => {
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    
+
     // Click submit
     fireEvent.click(submitButton);
 
@@ -117,7 +123,7 @@ describe('Login Component', () => {
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
-    
+
     await act(async () => {
       fireEvent.click(submitButton);
     });

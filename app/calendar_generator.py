@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime
 from typing import List, cast
+
 from ics import Calendar, Event
 from sqlalchemy.orm import Session
-import uuid
 
 from .models import Booking, User
 

@@ -1,9 +1,11 @@
-import pytest
 from datetime import timedelta
+
+import pytest
+
 from app.auth import (
+    create_access_token,
     get_password_hash,
     verify_password,
-    create_access_token,
     verify_token,
 )
 

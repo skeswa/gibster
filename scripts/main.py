@@ -26,7 +26,9 @@ def main():
         return
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)  # Set headless=True for background execution
+        browser = p.chromium.launch(
+            headless=False
+        )  # Set headless=True for background execution
         page = browser.new_page()
 
         # Log in
@@ -38,18 +40,21 @@ def main():
 
         # Navigate to rentals page
         print("Navigating to rentals page...")
-        page.wait_for_url(f"{RENTALS_URL}**") # Wait for redirect after login
-        
+        page.wait_for_url(f"{RENTALS_URL}**")  # Wait for redirect after login
+
         # Use the provided HTML snapshot for scraping logic
-        html_path = Path(__file__).parent.parent / "resources/page_snapshots/rentals/Rentals.html"
+        html_path = (
+            Path(__file__).parent.parent
+            / "resources/page_snapshots/rentals/Rentals.html"
+        )
         content = html_path.read_text()
-        
+
         print("Parsing rentals...")
         soup = BeautifulSoup(content, "lxml")
         cal = Calendar()
 
         rows = soup.select("table.forceRecordLayout tbody tr")
-        
+
         for row in rows:
             cells = row.select("th, td")
             if not cells:
@@ -95,4 +100,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
