@@ -42,7 +42,13 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
 
         cal.events.add(event)
 
-    return str(cal)
+    # Generate calendar string and customize PRODID
+    calendar_str = cal.serialize()
+    # Replace the default PRODID with Gibster
+    calendar_str = calendar_str.replace(
+        "PRODID:ics.py - http://git.io/lLljaA", "PRODID:Gibster"
+    )
+    return calendar_str
 
 
 def generate_ical(bookings: List[Booking]) -> str:
@@ -89,7 +95,7 @@ def generate_ical(bookings: List[Booking]) -> str:
         cal.events.add(event)
 
     # Generate calendar string and customize PRODID
-    calendar_str = str(cal)
+    calendar_str = cal.serialize()
     # Replace the default PRODID with Gibster
     calendar_str = calendar_str.replace(
         "PRODID:ics.py - http://git.io/lLljaA", "PRODID:Gibster"
@@ -102,14 +108,18 @@ def generate_ical(bookings: List[Booking]) -> str:
 
 def get_user_calendar(db: Session, calendar_uuid: str) -> str:
     """Get iCal calendar for a user by their calendar UUID"""
-    # Validate UUID format
+    # Validate UUID format and normalize to UUID object for database query
     try:
-        uuid.UUID(calendar_uuid)
+        if isinstance(calendar_uuid, uuid.UUID):
+            calendar_uuid_obj = calendar_uuid
+        else:
+            # Validate that it's a valid UUID string and convert to UUID object
+            calendar_uuid_obj = uuid.UUID(calendar_uuid)
     except ValueError:
         raise ValueError("Calendar not found")
 
-    # Query user by calendar UUID (SQLite stores UUIDs as strings)
-    user = db.query(User).filter(User.calendar_uuid == calendar_uuid).first()
+    # Query user by calendar UUID - use UUID object for proper SQLAlchemy comparison
+    user = db.query(User).filter(User.calendar_uuid == calendar_uuid_obj).first()
     if not user:
         raise ValueError("Calendar not found")
 
