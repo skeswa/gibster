@@ -8,7 +8,11 @@ export const metadata = {
   title: 'Gibster - Gibney Calendar Sync',
   description:
     'Gibster - Sync your Gibney dance studio bookings with your calendar',
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#000000',
 };
 

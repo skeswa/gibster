@@ -44,13 +44,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      // Login request
+      // Login request  
+      const loginFormData = new FormData();
+      loginFormData.append('username', formData.email);
+      loginFormData.append('password', formData.password);
+
       const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        body: loginFormData,
       });
 
       if (!response.ok) {

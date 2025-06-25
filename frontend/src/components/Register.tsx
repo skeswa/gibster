@@ -73,15 +73,13 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
       const userData: User = await response.json();
 
       // Auto-login after registration
+      const loginFormData = new FormData();
+      loginFormData.append('username', formData.email);
+      loginFormData.append('password', formData.password);
+
       const loginResponse = await fetch(`${API_BASE}/api/v1/auth/token`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+        body: loginFormData,
       });
 
       if (!loginResponse.ok) {

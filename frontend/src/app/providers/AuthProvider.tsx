@@ -83,6 +83,9 @@ export function AuthProvider({
     document.cookie = `token=${token}; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Strict; Secure=${process.env.NODE_ENV === 'production'}`;
 
     setUser(userData);
+    
+    // Navigate to dashboard after successful login
+    router.push('/dashboard');
   };
 
   const logout = (): void => {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
+import CredentialsForm from './CredentialsForm';
 
 interface User {
   id: string;
@@ -13,71 +13,7 @@ interface CredentialsProps {
   user: User;
 }
 
-interface FormData {
-  gibney_email: string;
-  gibney_password: string;
-}
-
-interface CredentialsResponse {
-  message: string;
-}
-
 const Credentials: React.FC<CredentialsProps> = ({ user }) => {
-  const [formData, setFormData] = useState<FormData>({
-    gibney_email: '',
-    gibney_password: '',
-  });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>('');
-  const [error, setError] = useState<string>('');
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    setError('');
-
-    const token = localStorage.getItem('token');
-
-    try {
-      const response = await fetch(`${API_BASE}/api/v1/user/credentials`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to update credentials');
-      }
-
-      const result: CredentialsResponse = await response.json();
-      setMessage(result.message);
-
-      // Clear form
-      setFormData({
-        gibney_email: '',
-        gibney_password: '',
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className='card' style={{ maxWidth: '600px', margin: '2rem auto' }}>
       <h2 className='card-header'>Gibney Credentials</h2>
@@ -89,57 +25,14 @@ const Credentials: React.FC<CredentialsProps> = ({ user }) => {
           never shared with third parties.
         </div>
 
-        {message && <div className='alert alert-success'>{message}</div>}
+        {/* Client component for interactive form */}
+        <CredentialsForm />
 
-        {error && <div className='alert alert-error'>{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className='form-group'>
-            <label htmlFor='gibney_email'>Gibney Email</label>
-            <input
-              type='email'
-              id='gibney_email'
-              name='gibney_email'
-              value={formData.gibney_email}
-              onChange={handleChange}
-              required
-              placeholder='Your Gibney account email'
-            />
-            <small style={{ color: '#666', fontSize: '0.9rem' }}>
-              The email you use to log into gibney.my.site.com
-            </small>
-          </div>
-
-          <div className='form-group'>
-            <label htmlFor='gibney_password'>Gibney Password</label>
-            <input
-              type='password'
-              id='gibney_password'
-              name='gibney_password'
-              value={formData.gibney_password}
-              onChange={handleChange}
-              required
-              placeholder='Your Gibney account password'
-            />
-            <small style={{ color: '#666', fontSize: '0.9rem' }}>
-              Your password will be encrypted before storage
-            </small>
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <button
-              type='submit'
-              className='btn btn-primary'
-              disabled={loading}
-            >
-              {loading ? 'Updating...' : 'Update Credentials'}
-            </button>
-
-            <Link href='/dashboard' className='btn btn-secondary'>
-              Back to Dashboard
-            </Link>
-          </div>
-        </form>
+        <div style={{ marginTop: '1rem' }}>
+          <Link href='/dashboard' className='btn btn-secondary'>
+            Back to Dashboard
+          </Link>
+        </div>
 
         <div
           className='mt-2'

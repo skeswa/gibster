@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from .auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
+    decrypt_credential,
     encrypt_credential,
     get_password_hash,
     verify_password,
@@ -137,6 +138,24 @@ async def login(
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/api/v1/user/credentials/email")
+async def get_credentials_email(
+    current_user: User = Depends(get_current_user),
+):
+    """Get the user's Gibney email (for form pre-population)"""
+    try:
+        gibney_email = getattr(current_user, "gibney_email", None)
+        if not gibney_email:
+            return {"gibney_email": None}
+
+        # Decrypt and return only the email
+        decrypted_email = decrypt_credential(str(gibney_email))
+        return {"gibney_email": decrypted_email}
+
+    except Exception:
+        return {"gibney_email": None}
 
 
 @app.put("/api/v1/user/credentials")
