@@ -22,7 +22,7 @@ def run_backend_tests(args):
     print("\n🔧 Running backend tests...")
 
     # Base pytest command
-    cmd = ["python", "-m", "pytest"]
+    cmd = ["python3", "-m", "pytest"]
 
     # Add verbosity
     if args.verbose:

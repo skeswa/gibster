@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import Login from '@/components/Login';
 
 // Mock Next.js router
@@ -48,16 +48,22 @@ describe('Login Component', () => {
     const mockOnLogin = jest.fn();
     render(<Login onLogin={mockOnLogin} />);
 
-    // Mock successful login response
+    // Create a promise we can control
+    let resolveTokenRequest!: (value: any) => void;
+    let resolveProfileRequest!: (value: any) => void;
+    
+    const tokenPromise = new Promise((resolve) => {
+      resolveTokenRequest = resolve;
+    });
+    
+    const profilePromise = new Promise((resolve) => {
+      resolveProfileRequest = resolve;
+    });
+
+    // Mock responses with controlled promises
     (fetch as jest.MockedFunction<typeof fetch>)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ access_token: 'test-token' }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ id: '1', email: 'test@example.com' }),
-      } as Response);
+      .mockReturnValueOnce(tokenPromise as any)
+      .mockReturnValueOnce(profilePromise as any);
 
     const emailInput = screen.getByLabelText('Email');
     const passwordInput = screen.getByLabelText('Password');
@@ -65,10 +71,34 @@ describe('Login Component', () => {
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    
+    // Click submit
     fireEvent.click(submitButton);
 
-    expect(screen.getByText('Logging in...')).toBeInTheDocument();
-    expect(submitButton).toBeDisabled();
+    // Check loading state appears immediately
+    await waitFor(() => {
+      expect(screen.getByText('Logging in...')).toBeInTheDocument();
+      expect(submitButton).toBeDisabled();
+    });
+
+    // Now resolve the requests
+    resolveTokenRequest({
+      ok: true,
+      json: () => Promise.resolve({ access_token: 'test-token' }),
+    });
+
+    resolveProfileRequest({
+      ok: true,
+      json: () => Promise.resolve({ id: '1', email: 'test@example.com' }),
+    });
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(mockOnLogin).toHaveBeenCalledWith('test-token', {
+        id: '1',
+        email: 'test@example.com',
+      });
+    });
   });
 
   test('displays error message when login fails', async () => {
@@ -87,7 +117,10 @@ describe('Login Component', () => {
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
-    fireEvent.click(submitButton);
+    
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Invalid credentials')).toBeInTheDocument();

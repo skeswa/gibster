@@ -21,39 +21,49 @@ if not ENCRYPTION_KEY:
     print(f"Generated encryption key: {ENCRYPTION_KEY.decode()}")
     print("Please set ENCRYPTION_KEY in your .env file")
 
-fernet = Fernet(ENCRYPTION_KEY if isinstance(ENCRYPTION_KEY, bytes) else ENCRYPTION_KEY.encode())
+fernet = Fernet(
+    ENCRYPTION_KEY if isinstance(ENCRYPTION_KEY, bytes) else ENCRYPTION_KEY.encode()
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     """Hash a password"""
     return pwd_context.hash(password)
+
 
 # Alias for test compatibility
 def hash_password(password: str) -> str:
     """Hash a password (alias for get_password_hash)"""
     return get_password_hash(password)
 
+
 def encrypt_credential(credential: str) -> str:
     """Encrypt a credential for secure storage"""
     return fernet.encrypt(credential.encode()).decode()
+
 
 def decrypt_credential(encrypted_credential: str) -> str:
     """Decrypt a credential"""
     return fernet.decrypt(encrypted_credential.encode()).decode()
 
-def create_access_token(data: Union[str, Dict[str, Any]], expires_delta: Optional[timedelta] = None) -> str:
+
+def create_access_token(
+    data: Union[str, Dict[str, Any]], expires_delta: Optional[timedelta] = None
+) -> str:
     """Create a JWT access token"""
     # Handle both old format (user_id string) and new format (dict)
     if isinstance(data, str):
         to_encode: Dict[str, Any] = {"sub": data}
     else:
         to_encode = data.copy()
-        
+
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -62,10 +72,14 @@ def create_access_token(data: Union[str, Dict[str, Any]], expires_delta: Optiona
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
-    """Verify a JWT token and return the payload"""
+
+def verify_token(token: str) -> Optional[str]:
+    """Verify a JWT token and return the user email"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        email = payload.get("sub")
+        if email is None:
+            return None
+        return str(email)
     except JWTError:
-        return None 
+        return None

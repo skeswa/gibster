@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import List
+from typing import List, cast
 from ics import Calendar, Event
 from sqlalchemy.orm import Session
+import uuid
 
 from .models import Booking, User
 
@@ -17,8 +18,8 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
 
         event = Event()
         event.name = f"{booking.studio} at {booking.location}"
-        event.begin = booking.start_time
-        event.end = booking.end_time
+        event.begin = cast(datetime, booking.start_time)
+        event.end = cast(datetime, booking.end_time)
         event.location = f"{booking.studio}, {booking.location}"
 
         # Build description
@@ -29,7 +30,7 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
             f"Status: {booking.status}",
         ]
 
-        if booking.price:
+        if booking.price is not None:
             description_parts.append(f"Price: ${booking.price:.2f}")
 
         description_parts.append(f"Booking Details: {booking.record_url}")
@@ -52,8 +53,8 @@ def generate_ical(bookings: List[Booking]) -> str:
         # Include all bookings, even cancelled ones (don't skip them)
         event = Event()
         event.name = f"{booking.name} - {booking.studio}"
-        event.begin = booking.start_time
-        event.end = booking.end_time
+        event.begin = cast(datetime, booking.start_time)
+        event.end = cast(datetime, booking.end_time)
         event.location = f"{booking.studio}, {booking.location}"
 
         # Build description
@@ -64,22 +65,22 @@ def generate_ical(bookings: List[Booking]) -> str:
             f"Status: {booking.status}",
         ]
 
-        if booking.price:
+        if booking.price is not None:
             description_parts.append(f"Price: ${booking.price:.2f}")
 
-        if hasattr(booking, "record_url") and booking.record_url:
+        if hasattr(booking, "record_url") and booking.record_url is not None:
             description_parts.append(f"Booking Details: {booking.record_url}")
 
         event.description = "\n".join(description_parts)
 
-        if hasattr(booking, "record_url") and booking.record_url:
-            event.url = booking.record_url
+        if hasattr(booking, "record_url") and booking.record_url is not None:
+            event.url = str(booking.record_url)
 
         # Set unique identifier
         event.uid = f"{booking.id}@gibster"
 
         # Set categories
-        event.categories = ["Gibney", "Dance Studio", "Rehearsal"]
+        event.categories = {"Gibney", "Dance Studio", "Rehearsal"}
 
         # Add status for cancelled bookings
         if booking.status.lower() in ["canceled", "cancelled"]:
@@ -101,6 +102,13 @@ def generate_ical(bookings: List[Booking]) -> str:
 
 def get_user_calendar(db: Session, calendar_uuid: str) -> str:
     """Get iCal calendar for a user by their calendar UUID"""
+    # Validate UUID format
+    try:
+        uuid.UUID(calendar_uuid)
+    except ValueError:
+        raise ValueError("Calendar not found")
+
+    # Query user by calendar UUID (SQLite stores UUIDs as strings)
     user = db.query(User).filter(User.calendar_uuid == calendar_uuid).first()
     if not user:
         raise ValueError("Calendar not found")
