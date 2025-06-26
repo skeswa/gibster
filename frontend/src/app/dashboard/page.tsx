@@ -3,8 +3,11 @@ import { getServerSession } from '@/lib/auth';
 import Dashboard from '@/components/Dashboard';
 import { cookies } from 'next/headers';
 
-// Server-side API calls use internal/service URLs, client-side uses public URLs  
-const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+// Server-side API calls use internal/service URLs, client-side uses public URLs
+const API_BASE =
+  process.env.API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  'http://localhost:8000';
 
 interface Booking {
   id: string;
@@ -38,8 +41,12 @@ async function getDashboardData(token: string) {
       }),
     ]);
 
-    const bookings: Booking[] = bookingsResponse.ok ? await bookingsResponse.json() : [];
-    const calendarData: CalendarResponse | null = calendarResponse.ok ? await calendarResponse.json() : null;
+    const bookings: Booking[] = bookingsResponse.ok
+      ? await bookingsResponse.json()
+      : [];
+    const calendarData: CalendarResponse | null = calendarResponse.ok
+      ? await calendarResponse.json()
+      : null;
 
     return {
       bookings,
@@ -73,5 +80,7 @@ export default async function DashboardPage() {
   // Fetch dashboard data server-side
   const { bookings, calendarUrl } = await getDashboardData(token);
 
-  return <Dashboard user={user} bookings={bookings} calendarUrl={calendarUrl} />;
+  return (
+    <Dashboard user={user} bookings={bookings} calendarUrl={calendarUrl} />
+  );
 }

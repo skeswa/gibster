@@ -44,7 +44,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      // Login request  
+      // Login request
       const loginFormData = new FormData();
       loginFormData.append('username', formData.email);
       loginFormData.append('password', formData.password);

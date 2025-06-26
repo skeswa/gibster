@@ -25,7 +25,8 @@ const CredentialsForm: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [hasExistingCredentials, setHasExistingCredentials] = useState<boolean>(false);
+  const [hasExistingCredentials, setHasExistingCredentials] =
+    useState<boolean>(false);
 
   // Fetch existing email on component mount
   useEffect(() => {
@@ -34,9 +35,12 @@ const CredentialsForm: React.FC = () => {
       if (!token) return;
 
       try {
-        const response = await fetch(`${API_BASE}/api/v1/user/credentials/email`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetch(
+          `${API_BASE}/api/v1/user/credentials/email`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (response.ok) {
           const data: CredentialsEmailResponse = await response.json();
@@ -137,25 +141,20 @@ const CredentialsForm: React.FC = () => {
             onChange={handleChange}
             required
             placeholder={
-              hasExistingCredentials 
-                ? 'Enter new password or leave current password unchanged' 
+              hasExistingCredentials
+                ? 'Enter new password or leave current password unchanged'
                 : 'Your Gibney account password'
             }
           />
           <small style={{ color: '#666', fontSize: '0.9rem' }}>
-            {hasExistingCredentials 
+            {hasExistingCredentials
               ? 'Password is saved. Enter a new one only if you want to change it.'
-              : 'Your password will be encrypted before storage'
-            }
+              : 'Your password will be encrypted before storage'}
           </small>
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button
-            type='submit'
-            className='btn btn-primary'
-            disabled={loading}
-          >
+          <button type='submit' className='btn btn-primary' disabled={loading}>
             {loading ? 'Updating...' : 'Update Credentials'}
           </button>
         </div>
@@ -164,4 +163,4 @@ const CredentialsForm: React.FC = () => {
   );
 };
 
-export default CredentialsForm; 
+export default CredentialsForm;

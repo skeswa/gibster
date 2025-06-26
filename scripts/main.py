@@ -34,13 +34,60 @@ def main():
         # Log in
         print("Logging in...")
         page.goto(LOGIN_URL)
-        page.fill('input[name="username"]', gibney_email)
-        page.fill('input[name="password"]', gibney_password)
+        page.fill('input[type="text"]', gibney_email)
+        page.fill('input[type="password"]', gibney_password)
         page.click('button[type="submit"]')
 
         # Navigate to rentals page
-        print("Navigating to rentals page...")
-        page.wait_for_url(f"{RENTALS_URL}**")  # Wait for redirect after login
+        print("Waiting for login redirect to home page...")
+        page.wait_for_url(
+            "https://gibney.my.site.com/s/"
+        )  # Wait for redirect to home page
+
+        print("Navigating to My Rentals...")
+        # Try multiple selectors for the My Rentals link
+        my_rentals_selectors = [
+            'a:has-text("My Rentals")',
+            'a[href*="booking-item"]',
+            'a[href*="rental"]',
+            'span:has-text("My Rentals")',
+        ]
+
+        rentals_link_clicked = False
+        for selector in my_rentals_selectors:
+            try:
+                page.click(selector, timeout=5000)
+                rentals_link_clicked = True
+                print(f"Successfully clicked My Rentals with selector: {selector}")
+                break
+            except Exception as e:
+                print(f"My Rentals selector {selector} failed: {e}")
+                continue
+
+        if not rentals_link_clicked:
+            # If we can't find the My Rentals link, try to navigate directly to the rentals URL
+            print("Could not find My Rentals link, navigating directly to rentals page")
+            page.goto(RENTALS_URL)
+        else:
+            # Wait for navigation to rentals page
+            print("Waiting for navigation to rentals page...")
+            try:
+                page.wait_for_url(
+                    f"{RENTALS_URL}**", timeout=45000
+                )  # Increased timeout to 45 seconds
+            except Exception as nav_error:
+                # Log current URL and page info for debugging
+                current_url = page.url
+                print(f"Failed to navigate to rentals page. Current URL: {current_url}")
+                print(f"Navigation error: {nav_error}")
+
+                # Check if we're already on a booking-related page
+                if "booking" in current_url or "rental" in current_url:
+                    print("Already on a booking-related page, proceeding...")
+                else:
+                    # Try direct navigation as fallback
+                    print("Attempting direct navigation to rentals page as fallback...")
+                    page.goto(RENTALS_URL, timeout=30000)
 
         # Use the provided HTML snapshot for scraping logic
         html_path = (

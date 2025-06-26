@@ -356,6 +356,8 @@ docker-compose --env-file .env.production up -d
 
 **Scraper login fails:** Verify Gibney credentials, check site changes, ensure Playwright installed with `python -m playwright install chromium`
 
+**"Playwright Sync API inside asyncio loop" error:** This has been fixed in the latest version. The scraper now uses Playwright's async API when called from FastAPI endpoints. If you encounter this error, ensure you have the latest code updates.
+
 **Calendar not updating (local dev):** Manual sync available via API at `/api/v1/user/sync` or run `python -c "from backend.worker import sync_scrape_all_users; sync_scrape_all_users()"`
 
 **Calendar not updating (Docker):** Check worker logs, verify Redis connection, restart worker
@@ -430,6 +432,16 @@ Educational purposes. Please respect Gibney's terms of service.
 - **Task Queue:** Celery with Redis for background job processing
 - **Database:** PostgreSQL for production, SQLite for development
 - **Deployment:** Docker containers for consistent environments
+
+### Async/Sync Implementation
+
+The scraper system supports both async and sync execution contexts:
+
+- **Async Version (`scrape_user_bookings`)**: Used when called from FastAPI endpoints, utilizing Playwright's async API
+- **Sync Wrapper (`scrape_user_bookings_sync`)**: Uses `asyncio.run()` to execute the async version in non-async contexts (Celery tasks, background workers)
+- **Context Detection**: Automatically chooses the appropriate version based on execution environment
+
+This design prevents the "Playwright Sync API inside asyncio loop" error while maintaining compatibility with both async FastAPI endpoints and synchronous background workers.
 
 ### Security Implementation
 

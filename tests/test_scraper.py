@@ -137,10 +137,11 @@ class TestScraperErrors:
         assert str(error) == error_msg
         assert isinstance(error, Exception)
 
-    def test_login_without_browser(self):
-        """Test that login fails gracefully without browser setup"""
+    @pytest.mark.asyncio
+    async def test_login_without_browser(self):
+        """Test that scrape_rentals fails gracefully without login"""
         scraper = GibneyScraper()
 
-        # This should raise an error since no browser is initialized
-        with pytest.raises(GibneyScrapingError):
-            scraper.scrape_rentals()  # This will fail because no login was performed
+        # This should raise an error since no login was performed
+        with pytest.raises(GibneyScrapingError, match="Must login first"):
+            await scraper.scrape_rentals()

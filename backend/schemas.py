@@ -54,3 +54,28 @@ class BookingResponse(BaseModel):
 class CalendarUrl(BaseModel):
     calendar_url: str
     calendar_uuid: UUID
+
+
+# Sync Job schemas
+class SyncJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: str
+    progress: Optional[str]
+    bookings_synced: int
+    error_message: Optional[str]
+    started_at: datetime
+    completed_at: Optional[datetime]
+    triggered_manually: bool
+
+
+class SyncStartResponse(BaseModel):
+    job_id: UUID
+    message: str
+    status: str
+
+
+class SyncStatusResponse(BaseModel):
+    job: SyncJobResponse
+    last_sync_at: Optional[datetime]
