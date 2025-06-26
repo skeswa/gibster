@@ -55,9 +55,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string>('');
+  const [isPolling, setIsPolling] = useState(false);
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleString();
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use user's local timezone
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
 
   const formatCompactDate = (dateString: string): string => {
@@ -150,40 +160,79 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (response.ok) {
         const result = await response.json();
         setSyncMessage(
-          'Sync started successfully! Progress will be shown below.'
+          'Sync started successfully! Checking for updates...'
         );
+        setIsPolling(true);
 
-        // Start polling for status updates
-        const interval = setInterval(async () => {
-          await fetchSyncStatus();
+        // Immediately fetch the initial status
+        await fetchSyncStatus();
 
-          // Stop polling if sync is complete or failed
-          if (
-            syncStatus?.job.status === 'completed' ||
-            syncStatus?.job.status === 'failed'
-          ) {
+        // Start polling for status updates after a short delay
+        setTimeout(() => {
+          const interval = setInterval(async () => {
+            try {
+              const token = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('token='))
+                ?.split('=')[1];
+
+              if (!token) {
+                clearInterval(interval);
+                setIsLoading(false);
+                setIsPolling(false);
+                return;
+              }
+
+              const statusResponse = await fetch(`${API_BASE}/api/v1/user/sync/status`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+
+              if (statusResponse.ok) {
+                const freshStatus = await statusResponse.json();
+                setSyncStatus(freshStatus);
+
+                // Update message based on current status
+                if (freshStatus?.job?.status === 'running') {
+                  setSyncMessage(
+                    `Sync in progress... ${freshStatus.job.progress || 'Fetching your bookings from Gibney'}`
+                  );
+                }
+
+                // Check the fresh status, not the stale component state
+                if (freshStatus?.job?.status === 'completed' || freshStatus?.job?.status === 'failed') {
+                  clearInterval(interval);
+                  setIsLoading(false);
+                  setIsPolling(false);
+
+                  if (freshStatus.job.status === 'completed') {
+                    setSyncMessage(
+                      `Sync completed! ${freshStatus.job.bookings_synced} bookings were synced.`
+                    );
+                    // Refresh the page to show updated bookings
+                    setTimeout(() => window.location.reload(), 2000);
+                  } else {
+                    setSyncMessage(
+                      `Sync failed: ${freshStatus.job.error_message || 'Unknown error'}`
+                    );
+                  }
+                }
+              } else {
+                console.error('Failed to fetch sync status during polling');
+              }
+            } catch (error) {
+              console.error('Error during status polling:', error);
+            }
+          }, 1500); // Poll every 1.5 seconds for more responsive updates
+
+          // Stop polling after 5 minutes to avoid infinite polling
+          setTimeout(() => {
             clearInterval(interval);
             setIsLoading(false);
+            setIsPolling(false);
+            setSyncMessage('Sync is taking longer than expected. Please check back later or try again.');
+          }, 300000);
+        }, 500); // Wait 500ms before starting polling to allow job creation
 
-            if (syncStatus?.job.status === 'completed') {
-              setSyncMessage(
-                `Sync completed! ${syncStatus.job.bookings_synced} bookings were synced.`
-              );
-              // Refresh the page to show updated bookings
-              setTimeout(() => window.location.reload(), 2000);
-            } else {
-              setSyncMessage(
-                `Sync failed: ${syncStatus?.job.error_message || 'Unknown error'}`
-              );
-            }
-          }
-        }, 2000); // Poll every 2 seconds
-
-        // Stop polling after 5 minutes to avoid infinite polling
-        setTimeout(() => {
-          clearInterval(interval);
-          setIsLoading(false);
-        }, 300000);
       } else {
         const error = await response.json();
         setSyncMessage(
@@ -258,14 +307,18 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className='mb-1'>
               <button
                 onClick={handleSyncNow}
-                disabled={isLoading}
-                className={`btn ${isLoading ? 'btn-disabled' : 'btn-primary'}`}
+                disabled={isLoading || isPolling}
+                className={`btn ${isLoading || isPolling ? 'btn-disabled' : 'btn-primary'}`}
                 style={{ marginRight: '1rem' }}
               >
-                {isLoading ? 'Syncing...' : 'Sync Now'}
+                {isLoading 
+                  ? 'Starting Sync...' 
+                  : isPolling 
+                    ? 'Syncing...' 
+                    : 'Sync Now'}
               </button>
 
-              <Link href='/credentials' className='btn btn-secondary'>
+              <Link href='/credentials' className='btn btn-outline'>
                 Update Gibney Credentials
               </Link>
             </div>
@@ -317,10 +370,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                 style={{
                   marginTop: '1rem',
                   padding: '1rem',
-                  background: '#e3f2fd',
+                  background: isPolling ? '#fff3cd' : '#e3f2fd',
                   borderRadius: '8px',
+                  border: isPolling ? '1px solid #ffeaa7' : '1px solid #b3d4fc',
                 }}
               >
+                {isPolling && (
+                  <span style={{ marginRight: '0.5rem' }}>
+                    ⏳
+                  </span>
+                )}
                 {syncMessage}
               </div>
             )}

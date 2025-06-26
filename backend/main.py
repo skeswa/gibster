@@ -84,17 +84,20 @@ async def request_tracking_middleware(request: Request, call_next):
 
     start_time = time.time()
 
-    # Log request start
-    logger.info(
-        f"Request started",
-        extra={
-            "request_id": request_id,
-            "method": request.method,
-            "url": str(request.url),
-            "client_ip": request.client.host if request.client else "unknown",
-            "user_agent": request.headers.get("user-agent", "unknown"),
-        },
-    )
+    # Only log non-health check requests in detail
+    is_health_check = request.url.path in ["/", "/health", "/api/health"]
+
+    # Log request start (only for non-health checks or slow requests)
+    if not is_health_check:
+        logger.debug(
+            f"Request started",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "url": str(request.url),
+                "client_ip": request.client.host if request.client else "unknown",
+            },
+        )
 
     try:
         response = await call_next(request)
@@ -102,15 +105,26 @@ async def request_tracking_middleware(request: Request, call_next):
         # Calculate response time
         response_time = time.time() - start_time
 
-        # Log successful response
-        logger.info(
-            f"Request completed",
-            extra={
-                "request_id": request_id,
-                "status_code": response.status_code,
-                "response_time_seconds": round(response_time, 3),
-            },
+        # Log based on conditions: errors, slow requests, or important endpoints
+        should_log = (
+            response.status_code >= 400  # Log errors
+            or response_time > 1.0  # Log slow requests (>1s)
+            or request.method in ["POST", "PUT", "DELETE"]  # Log mutation operations
+            or not is_health_check  # Log non-health check requests
         )
+
+        if should_log:
+            log_level = logger.warning if response.status_code >= 400 else logger.info
+            log_level(
+                f"Request completed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "url": str(request.url),
+                    "status_code": response.status_code,
+                    "response_time_seconds": round(response_time, 3),
+                },
+            )
 
         # Add request ID to response headers for debugging
         response.headers["X-Request-ID"] = request_id
@@ -126,6 +140,8 @@ async def request_tracking_middleware(request: Request, call_next):
             f"Request failed",
             extra={
                 "request_id": request_id,
+                "method": request.method,
+                "url": str(request.url),
                 "error": str(e),
                 "response_time_seconds": round(response_time, 3),
             },

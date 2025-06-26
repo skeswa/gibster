@@ -20,7 +20,6 @@ RENTALS_URL = "https://gibney.my.site.com/s/booking-item"
 
 def parse_booking_row(row_html: str) -> Dict[str, Any]:
     """Parse a booking row from HTML and extract booking data"""
-    logger.debug("Parsing booking row from HTML")
     soup = BeautifulSoup(row_html, "html.parser")
 
     # Find cells - this is a mock implementation based on expected structure
@@ -297,10 +296,51 @@ class GibneyScraper:
             content = await self.page.content()
             soup = BeautifulSoup(content, "lxml")
 
+            # Debug: Save HTML content for inspection
+            try:
+                with open("debug_rentals_page.html", "w", encoding="utf-8") as f:
+                    f.write(content)
+                logger.debug(
+                    "Saved page HTML to debug_rentals_page.html for inspection"
+                )
+            except Exception as e:
+                logger.debug(f"Could not save debug HTML: {e}")
+
+            # Debug: Check what tables are available
+            all_tables = soup.select("table")
+            logger.debug(f"Found {len(all_tables)} tables on the page")
+            for j, table in enumerate(all_tables):
+                table_classes = table.get("class") or []
+                logger.debug(f"  Table {j}: classes={table_classes}")
+
             rentals = []
             rows = soup.select("table.forceRecordLayout tbody tr")
 
             logger.info(f"Found {len(rows)} rental rows to process")
+
+            # If no rows found, try alternative selectors
+            if len(rows) == 0:
+                logger.warning(
+                    "No rows found with primary selector, trying alternatives..."
+                )
+                alternative_selectors = [
+                    "table tbody tr",
+                    ".forceRecordLayout tbody tr",
+                    "[data-aura-class*='uiVirtualDataTable'] tbody tr",
+                    "tbody tr",
+                ]
+
+                for alt_selector in alternative_selectors:
+                    alt_rows = soup.select(alt_selector)
+                    logger.debug(
+                        f"Alternative selector '{alt_selector}' found {len(alt_rows)} rows"
+                    )
+                    if len(alt_rows) > 0:
+                        rows = alt_rows
+                        logger.info(
+                            f"Using alternative selector '{alt_selector}' with {len(rows)} rows"
+                        )
+                        break
 
             for i, row in enumerate(rows):
                 cells = row.select("th, td")
@@ -311,6 +351,12 @@ class GibneyScraper:
                     continue
 
                 try:
+                    # Debug: Log all cell contents for troubleshooting
+                    logger.debug(f"Row {i+1} has {len(cells)} cells:")
+                    for j, cell in enumerate(cells):
+                        cell_text = cell.get_text(strip=True)
+                        logger.debug(f"  Cell {j}: '{cell_text}'")
+
                     # Extract data from each cell
                     rental_link = cells[1].select_one("a")
                     if not rental_link:
@@ -325,6 +371,14 @@ class GibneyScraper:
                     status = cells[6].get_text(strip=True)
                     location = cells[7].get_text(strip=True)
 
+                    logger.debug(f"Extracted data for {rental_name}:")
+                    logger.debug(f"  Start time: '{start_time_str}'")
+                    logger.debug(f"  End time: '{end_time_str}'")
+                    logger.debug(f"  Studio: '{studio}'")
+                    logger.debug(f"  Price: '{price_str}'")
+                    logger.debug(f"  Status: '{status}'")
+                    logger.debug(f"  Location: '{location}'")
+
                     # Extract record ID from href
                     href = str(rental_link.get("href", ""))
                     record_id_match = re.search(r"/([a-zA-Z0-9]{15,18})/", href)
@@ -334,14 +388,58 @@ class GibneyScraper:
                         else f"unknown_{rental_name}"
                     )
 
-                    # Parse dates
+                    # Parse dates with multiple format support
                     try:
-                        start_dt = datetime.strptime(
-                            start_time_str, "%b %d, %Y %I:%M %p"
+                        logger.debug(
+                            f"Parsing start_time: '{start_time_str}', end_time: '{end_time_str}'"
                         )
-                        end_dt = datetime.strptime(end_time_str, "%b %d, %Y %I:%M %p")
-                    except ValueError as e:
-                        logger.warning(f"Failed to parse dates for {rental_name}: {e}")
+
+                        # Try multiple date formats that Gibney might use
+                        date_formats = [
+                            "%m/%d/%Y %I:%M %p",  # 6/9/2025 7:00 PM
+                            "%b %d, %Y %I:%M %p",  # Jun 26, 2025 5:01 PM
+                            "%m/%d/%Y %H:%M",  # 6/9/2025 19:00
+                            "%Y-%m-%d %H:%M:%S",  # 2025-06-09 19:00:00
+                            "%Y-%m-%dT%H:%M:%S",  # 2025-06-09T19:00:00
+                        ]
+
+                        start_dt = None
+                        end_dt = None
+
+                        # Try parsing start time with different formats
+                        for date_format in date_formats:
+                            try:
+                                start_dt = datetime.strptime(
+                                    start_time_str, date_format
+                                )
+                                end_dt = datetime.strptime(end_time_str, date_format)
+                                logger.debug(
+                                    f"Successfully parsed dates using format: {date_format}"
+                                )
+                                break
+                            except ValueError:
+                                continue
+
+                        # If all parsing attempts failed
+                        if start_dt is None or end_dt is None:
+                            logger.warning(
+                                f"Failed to parse dates for {rental_name}: start='{start_time_str}', end='{end_time_str}'"
+                            )
+                            logger.warning(
+                                "All date format attempts failed, using fallback"
+                            )
+                            # Use current time as fallback
+                            start_dt = datetime.now()
+                            end_dt = datetime.now()
+                        else:
+                            logger.debug(
+                                f"Parsed dates successfully: {start_dt} to {end_dt}"
+                            )
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Exception during date parsing for {rental_name}: {e}"
+                        )
                         # Use current time as fallback
                         start_dt = datetime.now()
                         end_dt = datetime.now()

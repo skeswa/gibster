@@ -30,6 +30,34 @@ class StructuredFormatter(logging.Formatter):
         return formatted
 
 
+class NoiseReducingFilter(logging.Filter):
+    """Filter to reduce noisy log messages in production"""
+
+    NOISY_PATTERNS = [
+        "Database session created",
+        "Database session closed",
+        "Database connection established",
+        "Database connection closed",
+        "Verifying password",
+        "Password verification successful",
+        "Creating access token",
+        "Token verified successfully",
+        "Authenticating user",
+        "User authenticated successfully",
+    ]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        environment = os.getenv("ENVIRONMENT", "development")
+
+        # In production, filter out noisy debug messages
+        if environment == "production" and record.levelno == logging.DEBUG:
+            for pattern in self.NOISY_PATTERNS:
+                if pattern in record.getMessage():
+                    return False
+
+        return True
+
+
 def setup_logging() -> None:
     """Configure application logging"""
 
@@ -64,15 +92,22 @@ def setup_logging() -> None:
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             }
         },
+        "filters": {
+            "noise_reducer": {
+                "()": NoiseReducingFilter,
+            }
+        },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "structured",
+                "filters": ["noise_reducer"],
                 "stream": sys.stdout,
             },
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
                 "formatter": "structured",
+                "filters": ["noise_reducer"],
                 "filename": "logs/gibster.log",
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5,
@@ -93,7 +128,34 @@ def setup_logging() -> None:
                 ),
                 "propagate": False,
             },
+            # Reduce noise from specific modules
+            "gibster.database": {
+                "level": "WARNING" if environment == "production" else "INFO",
+                "handlers": (
+                    ["console", "file"] if environment == "production" else ["console"]
+                ),
+                "propagate": False,
+            },
+            "gibster.auth": {
+                "level": "INFO",
+                "handlers": (
+                    ["console", "file"] if environment == "production" else ["console"]
+                ),
+                "propagate": False,
+            },
+            "gibster.scraper": {
+                "level": "INFO",
+                "handlers": (
+                    ["console", "file"] if environment == "production" else ["console"]
+                ),
+                "propagate": False,
+            },
             "uvicorn": {"level": "INFO", "handlers": ["console"], "propagate": False},
+            "uvicorn.access": {
+                "level": "WARNING",
+                "handlers": ["console"],
+                "propagate": False,
+            },
             "sqlalchemy.engine": {
                 "level": "WARNING",  # Reduce SQL query noise unless debugging
                 "handlers": ["console"],

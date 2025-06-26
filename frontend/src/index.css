@@ -134,9 +134,25 @@ code {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.2);
+  background: #6c757d;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid #6c757d;
+}
+
+.btn-secondary:hover {
+  background: #545b62;
+  border-color: #4e555b;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+
+.btn-outline:hover {
+  background: #667eea;
+  color: white;
 }
 
 .btn-danger {
@@ -344,6 +360,15 @@ code {
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 
@@ -576,4 +601,10 @@ code {
     font-size: 0.75rem !important;
     padding: 0.3rem 0.6rem !important;
   }
+}
+
+/* Sync polling indicator animation */
+.sync-message span {
+  display: inline-block;
+  animation: rotate 2s linear infinite;
 }
