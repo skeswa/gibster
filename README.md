@@ -425,12 +425,12 @@ See [k8s/README.md](k8s/README.md) for detailed deployment instructions.
 
 **Security?** Credentials encrypted with Fernet, passwords hashed with bcrypt
 
-**Self-hosting?** Yes! Full Docker setup included
+**Self-hosting?** Yes! Full Kubernetes deployment manifests included
 
 ## Contributing
 
 1. Fork and create feature branch
-2. Set up development environment: `docker-compose up -d`
+2. Set up development environment: `python dev_setup.py` (automated setup)
 3. Make changes and add tests
 4. Run tests: `python run_tests.py --coverage` (runs both backend + frontend)
 5. Submit pull request
@@ -506,14 +506,14 @@ This design prevents the "Playwright Sync API inside asyncio loop" error while m
 # Health checks
 curl http://localhost:8000/health
 
-# View logs
-docker-compose logs -f web worker
+# View logs (Kubernetes)
+kubectl logs -l app=gibster -f
 
-# Database backup
-docker-compose exec db pg_dump -U postgres gibster > backup.sql
+# Database backup (Kubernetes)
+kubectl exec deployment/postgres -- pg_dump -U postgres gibster > backup.sql
 
 # Performance monitoring
-docker stats
+kubectl top pods
 ```
 
 ### SSL Setup with Caddy
@@ -533,16 +533,18 @@ caddy run  # Automatic SSL
 # Full development setup
 git clone <repo>
 cd gibster
-python setup.py  # Automated setup
+python dev_setup.py  # Automated setup including dependencies
 # Edit .env with your settings
-docker-compose up -d
+python run_server.py  # Start development server
 
 # Run tests (backend + frontend)
 python run_tests.py --verbose --coverage
 
 # Frontend development
-python setup.py frontend  # Setup frontend
-cd frontend && npm start  # Port 3000 with API proxy
+cd frontend && npm run dev  # Port 3000 with API proxy
+
+# For production deployment
+kubectl apply -k k8s/overlays/production
 ```
 
 **⚠️ Disclaimer:** Not affiliated with Gibney Dance Center. Use responsibly.

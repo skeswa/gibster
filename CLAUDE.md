@@ -97,9 +97,8 @@ gibster/
 ├── k8s/               # Kubernetes manifests
 │   ├── base/          # Base resources
 │   └── overlays/      # Environment-specific configs
-├── .github/
-│   └── workflows/     # GitHub Actions CI/CD
-└── docker-compose.yml # Legacy Docker Compose (being phased out)
+└── .github/
+    └── workflows/     # GitHub Actions CI/CD
 ```
 
 ### Development Configuration
