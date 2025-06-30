@@ -8,8 +8,8 @@ import React, {
   ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 
 interface User {
   id: string;
@@ -49,11 +49,7 @@ export function AuthProvider({
     if (token) {
       try {
         // Verify token with server
-        const response = await fetch(`${API_BASE}/api/v1/user/profile`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await apiClient.get('/api/v1/user/profile');
 
         if (response.ok) {
           const userData: User = await response.json();

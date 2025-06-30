@@ -1,8 +1,12 @@
 import React from 'react';
-import '@/index.css';
+import '@/globals.css';
+import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/app/providers/AuthProvider';
+import { ThemeProvider } from '@/app/providers/ThemeProvider';
 import ServerHeader from '@/components/ServerHeader';
 import { getServerSession } from '@/lib/auth';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'Gibster - Gibney Calendar Sync',
@@ -25,35 +29,21 @@ export default async function RootLayout({
   const user = await getServerSession();
 
   return (
-    <html lang='en'>
-      <head>
-        <style>{`
-          body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-              'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-              sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-          }
-          
-          code {
-            font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-              monospace;
-          }
-        `}</style>
-      </head>
-      <body>
-        <div id='root'>
+    <html lang='en' className={inter.className} suppressHydrationWarning>
+      <body className='min-h-screen bg-background'>
+        <ThemeProvider
+          attribute='class'
+          defaultTheme='system'
+          enableSystem
+          disableTransitionOnChange
+        >
           <AuthProvider initialUser={user}>
-            <div className='App'>
+            <div className='min-h-screen'>
               <ServerHeader user={user} />
-              <main className='main-content'>{children}</main>
+              <main className='container mx-auto px-4 py-8'>{children}</main>
             </div>
           </AuthProvider>
-        </div>
+        </ThemeProvider>
       </body>
     </html>
   );

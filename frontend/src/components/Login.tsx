@@ -1,137 +1,133 @@
+'use client';
+
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
+const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-interface User {
-  id: string;
-  email: string;
-}
-
-interface LoginProps {
-  onLogin: (token: string, userData: User) => void;
-}
-
-interface FormData {
-  email: string;
-  password: string;
-}
-
-interface TokenResponse {
-  access_token: string;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [formData, setFormData] = useState<FormData>({
-    email: '',
-    password: '',
-  });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
 
     try {
-      // Login request
-      const loginFormData = new FormData();
-      loginFormData.append('username', formData.email);
-      loginFormData.append('password', formData.password);
+      const response = await apiClient.post(
+        '/api/v1/auth/token',
+        new URLSearchParams({
+          username: email,
+          password: password,
+        }),
+        { skipAuth: true }
+      );
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
-        method: 'POST',
-        body: loginFormData,
-      });
+      const data = await response.json();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+      if (response.ok) {
+        // Set the JWT token in a cookie
+        document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Strict`;
+
+        // Redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        setError(data.detail || 'Invalid email or password');
       }
-
-      const tokenData: TokenResponse = await response.json();
-
-      // Get user profile
-      const profileResponse = await fetch(`${API_BASE}/api/v1/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      });
-
-      if (!profileResponse.ok) {
-        throw new Error('Failed to get user profile');
-      }
-
-      const userData: User = await profileResponse.json();
-      onLogin(tokenData.access_token, userData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className='card' style={{ maxWidth: '400px', margin: '2rem auto' }}>
-      <h2 className='card-header'>Login to Gibster</h2>
+    <div className='flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8'>
+      <Card className='w-full max-w-md'>
+        <CardHeader className='space-y-1'>
+          <CardTitle className='text-2xl font-bold text-center'>
+            Welcome back
+          </CardTitle>
+          <CardDescription className='text-center'>
+            Sign in to your Gibster account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            {error && (
+              <Alert variant='destructive'>
+                <AlertCircle className='h-4 w-4' />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-      <div className='card-content'>
-        {error && <div className='alert alert-error'>{error}</div>}
+            <div className='space-y-2'>
+              <Label htmlFor='email'>Email</Label>
+              <Input
+                id='email'
+                type='email'
+                placeholder='you@example.com'
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className='form-group'>
-            <label htmlFor='email'>Email</label>
-            <input
-              type='email'
-              id='email'
-              name='email'
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder='your.email@example.com'
-            />
-          </div>
+            <div className='space-y-2'>
+              <Label htmlFor='password'>Password</Label>
+              <Input
+                id='password'
+                type='password'
+                placeholder='••••••••'
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
 
-          <div className='form-group'>
-            <label htmlFor='password'>Password</label>
-            <input
-              type='password'
-              id='password'
-              name='password'
-              value={formData.password}
-              onChange={handleChange}
-              required
-              placeholder='Your password'
-            />
-          </div>
-
-          <button
-            type='submit'
-            className='btn btn-primary'
-            disabled={loading}
-            style={{ width: '100%' }}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        <div className='text-center mt-2'>
-          <p>
+            <Button type='submit' className='w-full' disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className='flex flex-col space-y-4'>
+          <div className='text-sm text-center text-muted-foreground'>
             Don&apos;t have an account?{' '}
-            <Link href='/register'>Register here</Link>
-          </p>
-        </div>
-      </div>
+            <Link
+              href='/register'
+              className='font-medium text-primary hover:underline'
+            >
+              Sign up
+            </Link>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

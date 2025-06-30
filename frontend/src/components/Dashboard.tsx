@@ -2,9 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Calendar,
+  RefreshCw,
+  Settings,
+  ExternalLink,
+  Copy,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 
-// Client-side API base URL
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 interface User {
   id: string;
@@ -48,7 +77,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  user,
+  user: _user,
   bookings,
   calendarUrl,
 }) => {
@@ -89,43 +118,36 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
-  const getStatusClass = (status: string): string => {
+  const getStatusVariant = (
+    status: string
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     const statusLower = status.toLowerCase();
     if (statusLower.includes('confirmed') || statusLower.includes('completed'))
-      return 'status-confirmed';
-    if (statusLower.includes('pending')) return 'status-pending';
-    if (statusLower.includes('canceled')) return 'status-canceled';
-    return 'status-confirmed';
+      return 'default';
+    if (statusLower.includes('pending')) return 'secondary';
+    if (statusLower.includes('canceled')) return 'destructive';
+    return 'outline';
   };
 
-  const getSyncStatusClass = (status: string): string => {
+  const getSyncStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'status-success';
+        return <CheckCircle2 className='h-4 w-4 text-green-600' />;
       case 'failed':
-        return 'status-error';
+        return <XCircle className='h-4 w-4 text-red-600' />;
       case 'running':
-        return 'status-running';
+        return <Loader2 className='h-4 w-4 animate-spin text-blue-600' />;
       case 'pending':
-        return 'status-pending';
+        return <Clock className='h-4 w-4 text-yellow-600' />;
       default:
-        return 'status-neutral';
+        return <AlertCircle className='h-4 w-4 text-gray-600' />;
     }
   };
 
   // Fetch sync status
   const fetchSyncStatus = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token='))
-        ?.split('=')[1];
-
-      if (!token) return;
-
-      const response = await fetch(`${API_BASE}/api/v1/user/sync/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get('/api/v1/user/sync/status');
 
       if (response.ok) {
         const status = await response.json();
@@ -142,24 +164,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     setSyncMessage('');
 
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token='))
-        ?.split('=')[1];
-
-      if (!token) {
-        setSyncMessage('Authentication required');
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/v1/user/sync`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.post('/api/v1/user/sync');
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         setSyncMessage('Sync started successfully! Checking for updates...');
         setIsPolling(true);
 
@@ -170,24 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         setTimeout(() => {
           const interval = setInterval(async () => {
             try {
-              const token = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('token='))
-                ?.split('=')[1];
-
-              if (!token) {
-                clearInterval(interval);
-                setIsLoading(false);
-                setIsPolling(false);
-                return;
-              }
-
-              const statusResponse = await fetch(
-                `${API_BASE}/api/v1/user/sync/status`,
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                }
-              );
+              const statusResponse = await apiClient.get('/api/v1/user/sync/status');
 
               if (statusResponse.ok) {
                 const freshStatus = await statusResponse.json();
@@ -258,73 +249,68 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, []);
 
   return (
-    <div className='dashboard-container'>
-      <div className='grid grid-2'>
+    <div className='space-y-6'>
+      <div className='grid gap-6 md:grid-cols-2'>
         {/* Calendar URL Card */}
-        <div className='card'>
-          <h2 className='card-header'>Your Calendar Feed</h2>
-          <div className='card-content'>
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2'>
+              <Calendar className='h-5 w-5' />
+              Your Calendar Feed
+            </CardTitle>
+            <CardDescription>
+              Subscribe to your Gibney bookings in your calendar app
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             {calendarUrl ? (
-              <>
-                <p className='mb-1'>
-                  Subscribe to your Gibney bookings in your calendar app:
-                </p>
-
+              <div className='space-y-4'>
                 {/* Quick subscription buttons */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>
-                    Quick Add:
-                  </h4>
-                  <div
-                    style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
-                  >
-                    <a
-                      href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarUrl)}`}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className='btn btn-primary'
-                      style={{ fontSize: '0.9rem' }}
-                    >
-                      📅 Add to Google Calendar
-                    </a>
-                    <a
-                      href={calendarUrl.replace('https://', 'webcal://')}
-                      className='btn btn-outline'
-                      style={{ fontSize: '0.9rem' }}
-                    >
-                      🍎 Add to Apple Calendar
-                    </a>
-                    <a
-                      href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(calendarUrl)}&name=Gibney%20Bookings`}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className='btn btn-outline'
-                      style={{ fontSize: '0.9rem' }}
-                    >
-                      📧 Add to Outlook
-                    </a>
+                <div className='space-y-3'>
+                  <p className='text-sm font-medium'>Quick Add:</p>
+                  <div className='flex flex-wrap gap-2'>
+                    <Button asChild>
+                      <a
+                        href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarUrl)}`}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      >
+                        <Calendar className='mr-2 h-4 w-4' />
+                        Google Calendar
+                      </a>
+                    </Button>
+                    <Button variant='outline' asChild>
+                      <a href={calendarUrl.replace('https://', 'webcal://')}>
+                        <Calendar className='mr-2 h-4 w-4' />
+                        Apple Calendar
+                      </a>
+                    </Button>
+                    <Button variant='outline' asChild>
+                      <a
+                        href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(calendarUrl)}&name=Gibney%20Bookings`}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      >
+                        <Calendar className='mr-2 h-4 w-4' />
+                        Outlook
+                      </a>
+                    </Button>
                   </div>
                 </div>
 
                 {/* Manual copy section */}
-                <div>
-                  <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>
+                <div className='space-y-3'>
+                  <p className='text-sm font-medium'>
                     Or copy the URL manually:
-                  </h4>
-                  <div
-                    style={{
-                      background: '#f8f9fa',
-                      padding: '1rem',
-                      borderRadius: '8px',
-                      wordBreak: 'break-all',
-                      marginBottom: '0.5rem',
-                      fontFamily: 'monospace',
-                      fontSize: '0.85rem',
-                      position: 'relative',
-                    }}
-                  >
-                    <code>{calendarUrl}</code>
-                    <button
+                  </p>
+                  <div className='relative'>
+                    <div className='flex items-center gap-2 rounded-md border bg-muted p-3 pr-20'>
+                      <code className='text-xs break-all'>{calendarUrl}</code>
+                    </div>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='absolute right-2 top-1/2 -translate-y-1/2'
                       onClick={() => {
                         navigator.clipboard
                           .writeText(calendarUrl)
@@ -337,228 +323,230 @@ const Dashboard: React.FC<DashboardProps> = ({
                             setTimeout(() => setCopyFeedback(''), 2000);
                           });
                       }}
-                      className='btn btn-sm'
-                      style={{
-                        position: 'absolute',
-                        top: '0.5rem',
-                        right: '0.5rem',
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.8rem',
-                      }}
-                      title='Copy to clipboard'
                     >
-                      {copyFeedback || '📋 Copy'}
-                    </button>
+                      {copyFeedback ? (
+                        copyFeedback
+                      ) : (
+                        <>
+                          <Copy className='h-4 w-4' />
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-
-                <p
-                  className='mb-1'
-                  style={{
-                    fontSize: '0.85rem',
-                    color: '#666',
-                    marginTop: '1rem',
-                  }}
-                >
-                  <em>
-                    💡 Your calendar will automatically update when bookings
-                    change. Most apps refresh every 2-24 hours.
-                  </em>
-                </p>
-              </>
+              </div>
             ) : (
-              <p>Loading calendar URL...</p>
+              <div className='flex items-center justify-center py-8'>
+                <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
+              </div>
             )}
-          </div>
-        </div>
+            
+            {calendarUrl && (
+              <Alert className='mt-4'>
+                <AlertCircle className='h-4 w-4' />
+                <AlertDescription>
+                  Your calendar will automatically update when bookings
+                  change. Most apps refresh every 2-24 hours.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Sync Control Card */}
-        <div className='card'>
-          <h2 className='card-header'>Sync Settings</h2>
-          <div className='card-content'>
-            <p className='mb-1'>
-              Sync your latest Gibney bookings. Your calendar will automatically
-              update every 2 hours, or you can manually sync now.
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2'>
+              <RefreshCw className='h-5 w-5' />
+              Sync Settings
+            </CardTitle>
+            <CardDescription>Sync your latest Gibney bookings</CardDescription>
+          </CardHeader>
+          <CardContent className='space-y-4'>
+            <p className='text-sm text-muted-foreground'>
+              Your calendar automatically updates every 2 hours, or you can
+              manually sync now.
             </p>
 
             {syncStatus && syncStatus.last_sync_at && (
-              <p className='mb-1 text-muted'>
+              <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                <Clock className='h-4 w-4' />
                 Last sync: {formatDate(syncStatus.last_sync_at)}
-              </p>
+              </div>
             )}
 
-            <div className='mb-1'>
-              <button
-                onClick={handleSyncNow}
-                disabled={isLoading || isPolling}
-                className={`btn ${isLoading || isPolling ? 'btn-disabled' : 'btn-primary'}`}
-                style={{ marginRight: '1rem' }}
-              >
-                {isLoading
-                  ? 'Starting Sync...'
-                  : isPolling
-                    ? 'Syncing...'
-                    : 'Sync Now'}
-              </button>
+            <div className='flex flex-wrap gap-3'>
+              <Button onClick={handleSyncNow} disabled={isLoading || isPolling}>
+                {isLoading || isPolling ? (
+                  <>
+                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                    {isLoading ? 'Starting Sync...' : 'Syncing...'}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className='mr-2 h-4 w-4' />
+                    Sync Now
+                  </>
+                )}
+              </Button>
 
-              <Link href='/credentials' className='btn btn-outline'>
-                Update Gibney Credentials
-              </Link>
+              <Button variant='outline' asChild>
+                <Link href='/credentials'>
+                  <Settings className='mr-2 h-4 w-4' />
+                  Update Credentials
+                </Link>
+              </Button>
             </div>
 
             {/* Sync Status Display */}
             {syncStatus && (
-              <div
-                className='sync-status'
-                style={{
-                  marginTop: '1rem',
-                  padding: '1rem',
-                  background: '#f8f9fa',
-                  borderRadius: '8px',
-                }}
-              >
-                <h4>Sync Status</h4>
-                <div
-                  className={`badge ${getSyncStatusClass(syncStatus.job.status)}`}
-                >
-                  {syncStatus.job.status.replace('_', ' ').toUpperCase()}
+              <div className='rounded-lg border bg-muted/50 p-4 space-y-3'>
+                <div className='flex items-center justify-between'>
+                  <p className='text-sm font-medium'>Sync Status</p>
+                  <div className='flex items-center gap-2'>
+                    {getSyncStatusIcon(syncStatus.job.status)}
+                    <span className='text-sm capitalize'>
+                      {syncStatus.job.status.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
                 {syncStatus.job.progress && (
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
+                  <p className='text-sm text-muted-foreground'>
                     {syncStatus.job.progress}
                   </p>
                 )}
                 {syncStatus.job.bookings_synced > 0 && (
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
+                  <p className='text-sm text-muted-foreground'>
                     Bookings synced: {syncStatus.job.bookings_synced}
                   </p>
                 )}
                 {syncStatus.job.error_message && (
-                  <p
-                    style={{
-                      margin: '0.5rem 0',
-                      fontSize: '0.9rem',
-                      color: '#dc3545',
-                    }}
-                  >
-                    Error: {syncStatus.job.error_message}
-                  </p>
+                  <Alert variant='destructive'>
+                    <AlertCircle className='h-4 w-4' />
+                    <AlertDescription>
+                      {syncStatus.job.error_message}
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
             )}
 
             {syncMessage && (
-              <div
-                className='sync-message'
-                style={{
-                  marginTop: '1rem',
-                  padding: '1rem',
-                  background: isPolling ? '#fff3cd' : '#e3f2fd',
-                  borderRadius: '8px',
-                  border: isPolling ? '1px solid #ffeaa7' : '1px solid #b3d4fc',
-                }}
+              <Alert
+                variant={
+                  isPolling
+                    ? 'default'
+                    : syncMessage.includes('failed')
+                      ? 'destructive'
+                      : 'default'
+                }
               >
-                {isPolling && <span style={{ marginRight: '0.5rem' }}>⏳</span>}
-                {syncMessage}
-              </div>
+                {isPolling ? (
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                ) : syncMessage.includes('failed') ? (
+                  <AlertCircle className='h-4 w-4' />
+                ) : (
+                  <CheckCircle2 className='h-4 w-4' />
+                )}
+                <AlertDescription>{syncMessage}</AlertDescription>
+              </Alert>
             )}
 
-            <p
-              className='mb-1'
-              style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}
-            >
-              <em>
-                Manual sync may take a few moments to complete. The page will
-                refresh automatically when finished.
-              </em>
+            <p className='text-xs text-muted-foreground italic'>
+              Manual sync may take a few moments to complete. The page will
+              refresh automatically when finished.
             </p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Bookings Table */}
-      <div className='card bookings-card'>
-        <h2 className='card-header'>Your Bookings ({bookings.length})</h2>
-        <div className='card-content'>
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Bookings ({bookings.length})</CardTitle>
+          <CardDescription>
+            All your Gibney dance studio bookings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {bookings.length === 0 ? (
-            <div className='text-center py-2'>
-              <p>No bookings found.</p>
-              <p>
-                Sync your Gibney account to see your bookings here, or{' '}
-                <Link href='/credentials'>update your credentials</Link> if you
-                haven&apos;t set them yet.
+            <div className='flex flex-col items-center justify-center py-12 text-center'>
+              <Calendar className='h-12 w-12 text-muted-foreground mb-4' />
+              <p className='text-lg font-medium mb-2'>No bookings found</p>
+              <p className='text-sm text-muted-foreground mb-4'>
+                Sync your Gibney account to see your bookings here
               </p>
+              <Button asChild>
+                <Link href='/credentials'>
+                  <Settings className='mr-2 h-4 w-4' />
+                  Update Credentials
+                </Link>
+              </Button>
             </div>
           ) : (
-            <div className='bookings-table-container'>
-              <table className='bookings-table'>
-                <thead>
-                  <tr>
-                    <th className='booking-name-col'>Booking</th>
-                    <th className='date-col'>Date</th>
-                    <th className='time-col'>Time</th>
-                    <th className='studio-col'>Studio</th>
-                    <th className='status-col'>Status</th>
-                    <th className='price-col'>Price</th>
-                    <th className='actions-col'>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className='rounded-md border'>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Studio</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead className='text-right'>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {bookings.map(booking => (
-                    <tr key={booking.id}>
-                      <td className='booking-name-cell'>
-                        <div className='booking-name'>{booking.name}</div>
-                      </td>
-                      <td className='date-cell'>
-                        <div className='booking-date'>
-                          {formatCompactDate(booking.start_time)}
+                    <TableRow key={booking.id}>
+                      <TableCell className='font-medium'>
+                        {booking.name}
+                      </TableCell>
+                      <TableCell>
+                        {formatCompactDate(booking.start_time)}
+                      </TableCell>
+                      <TableCell>
+                        <div className='text-sm'>
+                          {formatTime(booking.start_time)} -{' '}
+                          {formatTime(booking.end_time)}
                         </div>
-                      </td>
-                      <td className='time-cell'>
-                        <div className='booking-time'>
-                          <div>{formatTime(booking.start_time)}</div>
-                          <div className='time-separator'>to</div>
-                          <div>{formatTime(booking.end_time)}</div>
-                        </div>
-                      </td>
-                      <td className='studio-cell'>
-                        <div className='studio-info'>
-                          <div className='studio-name'>{booking.studio}</div>
-                          <div className='studio-location'>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className='font-medium'>{booking.studio}</div>
+                          <div className='text-sm text-muted-foreground'>
                             {booking.location}
                           </div>
                         </div>
-                      </td>
-                      <td className='status-cell'>
-                        <span
-                          className={`status-badge ${getStatusClass(booking.status)}`}
-                        >
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(booking.status)}>
                           {booking.status}
-                        </span>
-                      </td>
-                      <td className='price-cell'>
-                        <div className='booking-price'>
-                          {booking.price ? `$${booking.price}` : 'Free'}
-                        </div>
-                      </td>
-                      <td className='actions-cell'>
-                        <a
-                          href={booking.record_url}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='btn btn-sm btn-secondary action-btn'
-                        >
-                          View Details
-                        </a>
-                      </td>
-                    </tr>
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {booking.price ? `$${booking.price}` : 'Free'}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        <Button size='sm' variant='outline' asChild>
+                          <a
+                            href={booking.record_url}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                          >
+                            <ExternalLink className='h-4 w-4' />
+                          </a>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

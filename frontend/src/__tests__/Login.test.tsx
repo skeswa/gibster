@@ -7,11 +7,13 @@ import {
   act,
 } from '@testing-library/react';
 import Login from '@/components/Login';
+import { useRouter } from 'next/navigation';
 
 // Mock Next.js router
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
     prefetch: jest.fn(),
   }),
@@ -23,22 +25,26 @@ global.fetch = jest.fn();
 describe('Login Component', () => {
   beforeEach(() => {
     (fetch as jest.MockedFunction<typeof fetch>).mockClear();
+    mockPush.mockClear();
+    // Clear cookies
+    document.cookie = '';
   });
 
   test('renders login form with email and password fields', () => {
-    const mockOnLogin = jest.fn();
-    render(<Login onLogin={mockOnLogin} />);
+    render(<Login />);
 
-    expect(screen.getByText('Login to Gibster')).toBeInTheDocument();
+    expect(screen.getByText('Welcome back')).toBeInTheDocument();
+    expect(
+      screen.getByText('Sign in to your Gibster account')
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
     expect(screen.getByText("Don't have an account?")).toBeInTheDocument();
   });
 
   test('updates form fields when user types', () => {
-    const mockOnLogin = jest.fn();
-    render(<Login onLogin={mockOnLogin} />);
+    render(<Login />);
 
     const emailInput = screen.getByLabelText('Email') as HTMLInputElement;
     const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
@@ -50,66 +56,44 @@ describe('Login Component', () => {
     expect(passwordInput.value).toBe('password123');
   });
 
-  test('shows loading state when form is submitted', async () => {
-    const mockOnLogin = jest.fn();
-    render(<Login onLogin={mockOnLogin} />);
+  test('shows loading state when form is submitted and redirects on success', async () => {
+    render(<Login />);
 
-    // Create a promise we can control
-    let resolveTokenRequest!: (value: any) => void;
-    let resolveProfileRequest!: (value: any) => void;
-
-    const tokenPromise = new Promise(resolve => {
-      resolveTokenRequest = resolve;
-    });
-
-    const profilePromise = new Promise(resolve => {
-      resolveProfileRequest = resolve;
-    });
-
-    // Mock responses with controlled promises
-    (fetch as jest.MockedFunction<typeof fetch>)
-      .mockReturnValueOnce(tokenPromise as any)
-      .mockReturnValueOnce(profilePromise as any);
+    // Mock successful login response
+    (fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ access_token: 'test-token' }),
+    } as Response);
 
     const emailInput = screen.getByLabelText('Email');
     const passwordInput = screen.getByLabelText('Password');
-    const submitButton = screen.getByRole('button', { name: 'Login' });
+    const submitButton = screen.getByRole('button', { name: 'Sign In' });
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
 
     // Click submit
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
-    // Check loading state appears immediately
+    // Check loading state appears
     await waitFor(() => {
-      expect(screen.getByText('Logging in...')).toBeInTheDocument();
+      expect(screen.getByText('Signing in...')).toBeInTheDocument();
       expect(submitButton).toBeDisabled();
     });
 
-    // Now resolve the requests
-    resolveTokenRequest({
-      ok: true,
-      json: () => Promise.resolve({ access_token: 'test-token' }),
-    });
-
-    resolveProfileRequest({
-      ok: true,
-      json: () => Promise.resolve({ id: '1', email: 'test@example.com' }),
-    });
-
-    // Wait for completion
+    // Wait for redirect
     await waitFor(() => {
-      expect(mockOnLogin).toHaveBeenCalledWith('test-token', {
-        id: '1',
-        email: 'test@example.com',
-      });
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
+
+    // Check cookie was set
+    expect(document.cookie).toContain('token=test-token');
   });
 
   test('displays error message when login fails', async () => {
-    const mockOnLogin = jest.fn();
-    render(<Login onLogin={mockOnLogin} />);
+    render(<Login />);
 
     // Mock failed login response
     (fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
@@ -119,7 +103,7 @@ describe('Login Component', () => {
 
     const emailInput = screen.getByLabelText('Email');
     const passwordInput = screen.getByLabelText('Password');
-    const submitButton = screen.getByRole('button', { name: 'Login' });
+    const submitButton = screen.getByRole('button', { name: 'Sign In' });
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
@@ -132,6 +116,6 @@ describe('Login Component', () => {
       expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
     });
 
-    expect(mockOnLogin).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
+import { apiClient } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface FormData {
   gibney_email: string;
@@ -31,16 +42,8 @@ const CredentialsForm: React.FC = () => {
   // Fetch existing email on component mount
   useEffect(() => {
     const fetchExistingEmail = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
       try {
-        const response = await fetch(
-          `${API_BASE}/api/v1/user/credentials/email`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const response = await apiClient.get('/api/v1/user/credentials/email');
 
         if (response.ok) {
           const data: CredentialsEmailResponse = await response.json();
@@ -76,17 +79,8 @@ const CredentialsForm: React.FC = () => {
     setMessage('');
     setError('');
 
-    const token = localStorage.getItem('token');
-
     try {
-      const response = await fetch(`${API_BASE}/api/v1/user/credentials`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await apiClient.put('/api/v1/user/credentials', formData);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -109,57 +103,85 @@ const CredentialsForm: React.FC = () => {
   };
 
   return (
-    <>
-      {message && <div className='alert alert-success'>{message}</div>}
+    <Card className='w-full max-w-2xl'>
+      <CardHeader>
+        <CardTitle className='flex items-center gap-2'>
+          <Lock className='h-5 w-5' />
+          Gibney Credentials
+        </CardTitle>
+        <CardDescription>
+          Connect your Gibney account to sync your bookings
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {message && (
+          <Alert className='mb-6'>
+            <CheckCircle2 className='h-4 w-4' />
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
 
-      {error && <div className='alert alert-error'>{error}</div>}
+        {error && (
+          <Alert variant='destructive' className='mb-6'>
+            <AlertCircle className='h-4 w-4' />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <div className='form-group'>
-          <label htmlFor='gibney_email'>Gibney Email</label>
-          <input
-            type='email'
-            id='gibney_email'
-            name='gibney_email'
-            value={formData.gibney_email}
-            onChange={handleChange}
-            required
-            placeholder='Your Gibney account email'
-          />
-          <small style={{ color: '#666', fontSize: '0.9rem' }}>
-            The email you use to log into gibney.my.site.com
-          </small>
-        </div>
+        <form onSubmit={handleSubmit} className='space-y-6'>
+          <div className='space-y-2'>
+            <Label htmlFor='gibney_email'>Gibney Email</Label>
+            <Input
+              type='email'
+              id='gibney_email'
+              name='gibney_email'
+              value={formData.gibney_email}
+              onChange={handleChange}
+              required
+              placeholder='your@email.com'
+              disabled={loading}
+            />
+            <p className='text-sm text-muted-foreground'>
+              The email you use to log into gibney.my.site.com
+            </p>
+          </div>
 
-        <div className='form-group'>
-          <label htmlFor='gibney_password'>Gibney Password</label>
-          <input
-            type='password'
-            id='gibney_password'
-            name='gibney_password'
-            value={formData.gibney_password}
-            onChange={handleChange}
-            required
-            placeholder={
-              hasExistingCredentials
-                ? 'Enter new password or leave current password unchanged'
-                : 'Your Gibney account password'
-            }
-          />
-          <small style={{ color: '#666', fontSize: '0.9rem' }}>
-            {hasExistingCredentials
-              ? 'Password is saved. Enter a new one only if you want to change it.'
-              : 'Your password will be encrypted before storage'}
-          </small>
-        </div>
+          <div className='space-y-2'>
+            <Label htmlFor='gibney_password'>Gibney Password</Label>
+            <Input
+              type='password'
+              id='gibney_password'
+              name='gibney_password'
+              value={formData.gibney_password}
+              onChange={handleChange}
+              required
+              placeholder={
+                hasExistingCredentials
+                  ? 'Enter new password to update'
+                  : '••••••••'
+              }
+              disabled={loading}
+            />
+            <p className='text-sm text-muted-foreground'>
+              {hasExistingCredentials
+                ? 'Password is saved. Enter a new one only if you want to change it.'
+                : 'Your password will be encrypted before storage'}
+            </p>
+          </div>
 
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button type='submit' className='btn btn-primary' disabled={loading}>
-            {loading ? 'Updating...' : 'Update Credentials'}
-          </button>
-        </div>
-      </form>
-    </>
+          <Button type='submit' disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                Updating...
+              </>
+            ) : (
+              'Update Credentials'
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 
