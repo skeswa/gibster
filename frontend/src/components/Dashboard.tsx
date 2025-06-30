@@ -56,6 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [isPolling, setIsPolling] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<string>('');
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -159,9 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       if (response.ok) {
         const result = await response.json();
-        setSyncMessage(
-          'Sync started successfully! Checking for updates...'
-        );
+        setSyncMessage('Sync started successfully! Checking for updates...');
         setIsPolling(true);
 
         // Immediately fetch the initial status
@@ -183,9 +182,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                 return;
               }
 
-              const statusResponse = await fetch(`${API_BASE}/api/v1/user/sync/status`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              const statusResponse = await fetch(
+                `${API_BASE}/api/v1/user/sync/status`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
 
               if (statusResponse.ok) {
                 const freshStatus = await statusResponse.json();
@@ -199,7 +201,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 }
 
                 // Check the fresh status, not the stale component state
-                if (freshStatus?.job?.status === 'completed' || freshStatus?.job?.status === 'failed') {
+                if (
+                  freshStatus?.job?.status === 'completed' ||
+                  freshStatus?.job?.status === 'failed'
+                ) {
                   clearInterval(interval);
                   setIsLoading(false);
                   setIsPolling(false);
@@ -229,10 +234,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             clearInterval(interval);
             setIsLoading(false);
             setIsPolling(false);
-            setSyncMessage('Sync is taking longer than expected. Please check back later or try again.');
+            setSyncMessage(
+              'Sync is taking longer than expected. Please check back later or try again.'
+            );
           }, 300000);
         }, 500); // Wait 500ms before starting polling to allow job creation
-
       } else {
         const error = await response.json();
         setSyncMessage(
@@ -261,25 +267,102 @@ const Dashboard: React.FC<DashboardProps> = ({
             {calendarUrl ? (
               <>
                 <p className='mb-1'>
-                  Add this URL to your calendar app to sync your Gibney
-                  bookings:
+                  Subscribe to your Gibney bookings in your calendar app:
                 </p>
-                <div
+
+                {/* Quick subscription buttons */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>
+                    Quick Add:
+                  </h4>
+                  <div
+                    style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+                  >
+                    <a
+                      href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarUrl)}`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='btn btn-primary'
+                      style={{ fontSize: '0.9rem' }}
+                    >
+                      📅 Add to Google Calendar
+                    </a>
+                    <a
+                      href={calendarUrl.replace('https://', 'webcal://')}
+                      className='btn btn-outline'
+                      style={{ fontSize: '0.9rem' }}
+                    >
+                      🍎 Add to Apple Calendar
+                    </a>
+                    <a
+                      href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(calendarUrl)}&name=Gibney%20Bookings`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='btn btn-outline'
+                      style={{ fontSize: '0.9rem' }}
+                    >
+                      📧 Add to Outlook
+                    </a>
+                  </div>
+                </div>
+
+                {/* Manual copy section */}
+                <div>
+                  <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>
+                    Or copy the URL manually:
+                  </h4>
+                  <div
+                    style={{
+                      background: '#f8f9fa',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      wordBreak: 'break-all',
+                      marginBottom: '0.5rem',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      position: 'relative',
+                    }}
+                  >
+                    <code>{calendarUrl}</code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard
+                          .writeText(calendarUrl)
+                          .then(() => {
+                            setCopyFeedback('Copied!');
+                            setTimeout(() => setCopyFeedback(''), 2000);
+                          })
+                          .catch(() => {
+                            setCopyFeedback('Failed to copy');
+                            setTimeout(() => setCopyFeedback(''), 2000);
+                          });
+                      }}
+                      className='btn btn-sm'
+                      style={{
+                        position: 'absolute',
+                        top: '0.5rem',
+                        right: '0.5rem',
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.8rem',
+                      }}
+                      title='Copy to clipboard'
+                    >
+                      {copyFeedback || '📋 Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <p
+                  className='mb-1'
                   style={{
-                    background: '#f8f9fa',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    wordBreak: 'break-all',
-                    marginBottom: '1rem',
-                    fontFamily: 'monospace',
-                    fontSize: '0.9rem',
+                    fontSize: '0.85rem',
+                    color: '#666',
+                    marginTop: '1rem',
                   }}
                 >
-                  <code>{calendarUrl}</code>
-                </div>
-                <p className='mb-1'>
                   <em>
-                    Select and copy the URL above to add to your calendar app.
+                    💡 Your calendar will automatically update when bookings
+                    change. Most apps refresh every 2-24 hours.
                   </em>
                 </p>
               </>
@@ -311,10 +394,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 className={`btn ${isLoading || isPolling ? 'btn-disabled' : 'btn-primary'}`}
                 style={{ marginRight: '1rem' }}
               >
-                {isLoading 
-                  ? 'Starting Sync...' 
-                  : isPolling 
-                    ? 'Syncing...' 
+                {isLoading
+                  ? 'Starting Sync...'
+                  : isPolling
+                    ? 'Syncing...'
                     : 'Sync Now'}
               </button>
 
@@ -375,11 +458,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   border: isPolling ? '1px solid #ffeaa7' : '1px solid #b3d4fc',
                 }}
               >
-                {isPolling && (
-                  <span style={{ marginRight: '0.5rem' }}>
-                    ⏳
-                  </span>
-                )}
+                {isPolling && <span style={{ marginRight: '0.5rem' }}>⏳</span>}
                 {syncMessage}
               </div>
             )}
@@ -407,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <p>
                 Sync your Gibney account to see your bookings here, or{' '}
                 <Link href='/credentials'>update your credentials</Link> if you
-                haven't set them yet.
+                haven&apos;t set them yet.
               </p>
             </div>
           ) : (

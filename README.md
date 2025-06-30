@@ -43,7 +43,9 @@ graph TD
 
 - **Secure credential storage** - Gibney passwords encrypted at rest
 - **Automatic syncing** - Bookings updated every 2 hours
-- **Universal calendar compatibility** - Works with Google Calendar, Apple Calendar, Outlook, etc.
+- **Live calendar subscription** - One-click add to Google Calendar, Apple Calendar, Outlook
+- **Universal compatibility** - Standard iCal format works with any calendar app
+- **Auto-updating calendar** - Changes in Gibney automatically appear in your calendar
 - **Web dashboard** - Manage settings and view sync status
 - **Manual sync** - Trigger immediate updates when needed
 
@@ -91,11 +93,43 @@ kubectl apply -k k8s/overlays/development
 
 1. **Register** at http://localhost:8000
 2. **Add Gibney credentials** in Settings
-3. **Copy calendar URL** from dashboard
-4. **Subscribe in your calendar app:**
-   - **Google Calendar:** Settings → Add calendar → From URL
-   - **Apple Calendar:** File → New Calendar Subscription
-   - **Outlook:** Calendar → Add calendar → Subscribe from web
+3. **Subscribe to your calendar:**
+   - From the dashboard, click the quick-add button for your calendar app
+   - Or copy the calendar URL and add it manually
+
+### Calendar Subscription (Automatic Updates)
+
+Gibster provides a live calendar feed that automatically syncs with your calendar app:
+
+#### Quick Add (One-Click)
+- **Google Calendar**: Click "Add to Google Calendar" button
+- **Apple Calendar**: Click "Add to Apple Calendar" button  
+- **Outlook**: Click "Add to Outlook" button
+
+#### Manual Subscription
+If the quick-add buttons don't work, copy your calendar URL and:
+
+**Google Calendar:**
+1. Open Google Calendar → Settings → Add calendar → From URL
+2. Paste your calendar URL
+3. Click "Add calendar"
+
+**Apple Calendar:**
+1. File → New Calendar Subscription
+2. Paste your calendar URL
+3. Choose update frequency (we recommend every 2 hours)
+
+**Outlook.com:**
+1. Calendar → Add calendar → Subscribe from web
+2. Paste your calendar URL
+3. Give it a name like "Gibney Bookings"
+
+**Other Apps:** Most calendar apps support subscribing via URL. Look for options like:
+- "Subscribe to calendar"
+- "Add calendar from URL"
+- "Add web calendar"
+
+💡 **Note**: Your calendar will automatically update when your Gibney bookings change. Most apps check for updates every 2-24 hours.
 
 ## Development
 

@@ -212,15 +212,12 @@ async def health_check(db: Session = Depends(get_db)):
             "status": "healthy",
             "service": "gibster-api",
             "version": "1.0.0",
-            "checks": {
-                "database": "ok"
-            }
+            "checks": {"database": "ok"},
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unhealthy"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service unhealthy"
         )
 
 
@@ -642,10 +639,13 @@ async def get_calendar_feed(calendar_uuid: str, db: Session = Depends(get_db)):
             media_type="text/calendar",
             headers={
                 "Content-Disposition": (
-                    f"attachment; filename=gibney-bookings-" f"{calendar_uuid}.ics"
+                    f"inline; filename=gibney-bookings-{calendar_uuid}.ics"
                 ),
-                "Cache-Control": "no-cache, must-revalidate",
-                "Pragma": "no-cache",
+                # Allow caching for 2 hours to reduce server load
+                "Cache-Control": "public, max-age=7200",
+                "X-WR-CALNAME": "Gibney Bookings",
+                # Support both https and webcal protocols
+                "Access-Control-Allow-Origin": "*",
             },
         )
 

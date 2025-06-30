@@ -18,6 +18,18 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
     )
 
     cal = Calendar()
+
+    # Add calendar metadata for better subscription support
+    cal.extra.append("X-WR-CALNAME:Gibney Bookings")
+    cal.extra.append(
+        "X-WR-CALDESC:Your Gibney dance studio bookings - automatically synced"
+    )
+    cal.extra.append("X-WR-TIMEZONE:America/New_York")
+    # Suggest 2-hour refresh interval for calendar apps
+    cal.extra.append("REFRESH-INTERVAL;VALUE=DURATION:PT2H")
+    cal.extra.append("X-PUBLISHED-TTL:PT2H")
+    cal.extra.append("COLOR:lightblue")
+
     processed_bookings = 0
     skipped_bookings = 0
 
@@ -92,6 +104,16 @@ def generate_ical(bookings: List[Booking]) -> str:
     )
 
     cal = Calendar()
+
+    # Add calendar metadata for better subscription support
+    cal.extra.append("X-WR-CALNAME:Gibney Bookings")
+    cal.extra.append(
+        "X-WR-CALDESC:Your Gibney dance studio bookings - automatically synced"
+    )
+    cal.extra.append("X-WR-TIMEZONE:America/New_York")
+    cal.extra.append("REFRESH-INTERVAL;VALUE=DURATION:PT2H")
+    cal.extra.append("X-PUBLISHED-TTL:PT2H")
+
     processed_bookings = 0
 
     for booking in bookings:

@@ -127,7 +127,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className='text-center mt-2'>
           <p>
-            Don't have an account? <Link href='/register'>Register here</Link>
+            Don&apos;t have an account?{' '}
+            <Link href='/register'>Register here</Link>
           </p>
         </div>
       </div>
