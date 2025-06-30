@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gibster-backend
+  namespace: gibster
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: backend
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "300m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gibster-frontend
+  namespace: gibster
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: frontend
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "150m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gibster-celery
+  namespace: gibster
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: celery
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "150m"
+          limits:
+            memory: "1Gi"
+            cpu: "400m"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gibster-cert
+  namespace: gibster
+spec:
+  secretName: gibster-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: gibster.sandile.dev
+  dnsNames:
+    - gibster.sandile.dev
+    - www.gibster.sandile.dev
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gibster-ingress
+  namespace: gibster
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - gibster.sandile.dev
+    - www.gibster.sandile.dev
+    secretName: gibster-tls
+  rules:
+  - host: gibster.sandile.dev
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-frontend
+            port:
+              number: 3000
+  - host: www.gibster.sandile.dev
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-frontend
+            port:
+              number: 3000

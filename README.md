@@ -72,18 +72,20 @@ The setup script automatically:
 
 **Important:** After setup, edit `.env` and add your actual Gibney credentials and generate secure keys for production use.
 
-### Using Docker (Alternative)
+### Using Kubernetes (Production)
 
 ```bash
 git clone <your-repo-url>
 cd gibster
-# Create production environment file
-cp .env.production.example .env.production
-# Edit .env.production with your credentials and secure keys
-docker-compose --env-file .env.production up -d
+
+# For local K3s development
+kubectl apply -k k8s/overlays/development
+
+# Production deployment is automated via GitHub Actions
+# See k8s/README.md for detailed instructions
 ```
 
-**Note:** The Docker setup requires PostgreSQL and Redis containers, while local development uses SQLite and runs background tasks synchronously for simplicity.
+**Note:** The Kubernetes setup uses PostgreSQL StatefulSet and Redis deployment. For local development without Kubernetes, use the dev_setup.py script which uses SQLite and runs background tasks synchronously.
 
 ## Usage
 
@@ -326,31 +328,44 @@ Documentation: http://localhost:8000/docs
 
 ## Deployment
 
-### Production with Docker
+### Production with Kubernetes
+
+Gibster is designed to run on Kubernetes (K3s) with automated CI/CD through GitHub Actions.
+
+#### Quick Deploy to K3s
 
 ```bash
-# Copy and configure production environment
-cp .env.production.example .env.production
+# Apply development configuration
+kubectl apply -k k8s/overlays/development
 
-# IMPORTANT: Edit .env.production and set:
-# - Your actual Gibney credentials
-# - Secure SECRET_KEY and ENCRYPTION_KEY (generate with: openssl rand -hex 32)
-# - Secure database password
-# - Your domain for CORS settings
-
-# Deploy with production configuration
-docker-compose --env-file .env.production up -d
-
-# Optional: Use production-specific compose file
-# docker-compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d
+# For production, configure GitHub Actions secrets:
+# - KUBE_CONFIG: Base64 encoded kubeconfig
+# - DATABASE_URL, POSTGRES_PASSWORD, SECRET_KEY, ENCRYPTION_KEY
+# Then push to main branch to trigger deployment
 ```
+
+#### Manual Production Deploy
+
+```bash
+# Create secrets
+kubectl create secret generic gibster-secrets \
+  --from-literal=database-url="postgresql://gibster:SECURE_PASS@gibster-postgres:5432/gibster" \
+  --from-literal=postgres-password="SECURE_PASS" \
+  --from-literal=secret-key="$(openssl rand -hex 32)" \
+  --from-literal=encryption-key="$(openssl rand -hex 32)"
+
+# Apply production configuration
+kubectl apply -k k8s/overlays/production
+```
+
+See [k8s/README.md](k8s/README.md) for detailed deployment instructions.
 
 **Security Checklist for Production:**
 - ✅ Generated secure `SECRET_KEY` and `ENCRYPTION_KEY`
 - ✅ Set strong database password
-- ✅ Configured `ALLOWED_ORIGINS` for your domain
-- ✅ Disabled `DATABASE_DEBUG` and `APP_RELOAD`
-- ✅ Set `ENVIRONMENT=production`
+- ✅ Configure TLS certificate for ingress
+- ✅ Set up GitHub Actions secrets
+- ✅ Configure proper resource limits
 
 ## Troubleshooting
 

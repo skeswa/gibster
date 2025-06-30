@@ -1,0 +1,9 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gibster-ingress
+  annotations:
+    # Remove cert-manager annotation for local development
+    cert-manager.io/cluster-issuer: null
+spec:
+  tls: []

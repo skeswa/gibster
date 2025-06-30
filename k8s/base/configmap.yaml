@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gibster-config
+  namespace: gibster
+  labels:
+    app: gibster
+data:
+  api-url: "http://gibster-backend:8000"

@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+patchesStrategicMerge:
+- deployment-patches.yaml
+- ingress-patch.yaml
+
+# Remove certificate for development
+patchesJson6902:
+- target:
+    group: cert-manager.io
+    version: v1
+    kind: Certificate
+    name: gibster-cert
+  patch: |-
+    - op: remove
+      path: /spec
+
+configMapGenerator:
+- name: gibster-config
+  behavior: merge
+  literals:
+  - environment=development
+
+secretGenerator:
+- name: gibster-secrets
+  behavior: merge
+  literals:
+  - database-url=postgresql://gibster:devpassword@gibster-postgres:5432/gibster
+  - postgres-password=devpassword
+  - secret-key=development-secret-key-change-in-production
+  - encryption-key=development-encryption-key-change-in-production
+
+replicas:
+- name: gibster-backend
+  count: 1
+- name: gibster-frontend
+  count: 1
+- name: gibster-celery
+  count: 1

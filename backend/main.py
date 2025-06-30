@@ -2,6 +2,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from typing import List, cast
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -201,6 +202,28 @@ async def root():
     return {"message": "Gibster API is running", "version": "1.0.0"}
 
 
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint for Kubernetes probes"""
+    try:
+        # Test database connection
+        db.execute("SELECT 1")
+        return {
+            "status": "healthy",
+            "service": "gibster-api",
+            "version": "1.0.0",
+            "checks": {
+                "database": "ok"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service unhealthy"
+        )
+
+
 @app.post("/api/v1/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Create a new Gibster user account"""
@@ -351,7 +374,7 @@ async def get_calendar_url(
 
     try:
         base_url = str(request.base_url).rstrip("/")
-        calendar_uuid = cast(uuid.UUID, current_user.calendar_uuid)
+        calendar_uuid = cast(UUID, current_user.calendar_uuid)
         calendar_url = f"{base_url}/calendar/{calendar_uuid}.ics"
 
         logger.debug(f"Calendar URL generated for user: {current_user.email}")
@@ -439,13 +462,13 @@ async def sync_bookings(
             # Run asynchronously for development
             logger.debug(f"Running sync job {sync_job.id} asynchronously")
             result = await sync_scrape_user_with_job_tracking(
-                db, current_user, sync_job.id
+                db, current_user, cast(UUID, sync_job.id)
             )
 
         return SyncStartResponse(
-            job_id=sync_job.id,
+            job_id=cast(UUID, sync_job.id),
             message="Sync started successfully",
-            status=sync_job.status or "pending",
+            status=cast(str, sync_job.status) or "pending",
         )
 
     except Exception as e:
@@ -499,14 +522,34 @@ async def get_sync_status(
         )
         return SyncStatusResponse(
             job=SyncJobResponse(
-                id=latest_job.id,
-                status=latest_job.status or "unknown",
-                progress=latest_job.progress or "No progress information",
-                bookings_synced=int(latest_job.bookings_synced or 0),
-                error_message=latest_job.error_message,
-                started_at=latest_job.started_at,
-                completed_at=latest_job.completed_at,
-                triggered_manually=latest_job.triggered_manually or False,
+                id=cast(UUID, latest_job.id),
+                status=cast(str, latest_job.status) or "unknown",
+                progress=(
+                    cast(str, latest_job.progress)
+                    if getattr(latest_job, "progress", None) is not None
+                    else "No progress information"
+                ),
+                bookings_synced=int(
+                    cast(int, latest_job.bookings_synced)
+                    if getattr(latest_job, "bookings_synced", None) is not None
+                    else 0
+                ),
+                error_message=(
+                    cast(str, latest_job.error_message)
+                    if getattr(latest_job, "error_message", None) is not None
+                    else None
+                ),
+                started_at=latest_job.started_at,  # type: ignore
+                completed_at=(
+                    latest_job.completed_at  # type: ignore
+                    if getattr(latest_job, "completed_at", None) is not None
+                    else None
+                ),
+                triggered_manually=(
+                    cast(bool, latest_job.triggered_manually)
+                    if getattr(latest_job, "triggered_manually", None) is not None
+                    else False
+                ),
             ),
             last_sync_at=getattr(current_user, "last_sync_at", None),
         )
@@ -544,14 +587,34 @@ async def get_sync_history(
         return {
             "jobs": [
                 SyncJobResponse(
-                    id=job.id,
-                    status=job.status or "unknown",
-                    progress=job.progress or "No progress information",
-                    bookings_synced=int(job.bookings_synced or 0),
-                    error_message=job.error_message,
-                    started_at=job.started_at,
-                    completed_at=job.completed_at,
-                    triggered_manually=job.triggered_manually or False,
+                    id=cast(UUID, job.id),
+                    status=cast(str, job.status) or "unknown",
+                    progress=(
+                        cast(str, job.progress)
+                        if getattr(job, "progress", None) is not None
+                        else "No progress information"
+                    ),
+                    bookings_synced=int(
+                        cast(int, job.bookings_synced)
+                        if getattr(job, "bookings_synced", None) is not None
+                        else 0
+                    ),
+                    error_message=(
+                        cast(str, job.error_message)
+                        if getattr(job, "error_message", None) is not None
+                        else None
+                    ),
+                    started_at=job.started_at,  # type: ignore
+                    completed_at=(
+                        job.completed_at  # type: ignore
+                        if getattr(job, "completed_at", None) is not None
+                        else None
+                    ),
+                    triggered_manually=(
+                        cast(bool, job.triggered_manually)
+                        if getattr(job, "triggered_manually", None) is not None
+                        else False
+                    ),
                 )
                 for job in jobs
             ]

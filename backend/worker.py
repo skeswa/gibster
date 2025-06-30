@@ -18,7 +18,19 @@ load_dotenv()
 logger = get_logger("worker")
 
 # Celery configuration - make Redis optional for local development
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Support both REDIS_URL format and separate REDIS_HOST/PASSWORD
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
+# Build Redis URL from components if not directly provided
+if os.getenv("REDIS_URL"):
+    REDIS_URL = os.getenv("REDIS_URL")
+else:
+    if REDIS_PASSWORD:
+        REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+    else:
+        REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
 # Check if we're in development mode without Redis
 USE_CELERY = os.getenv("USE_CELERY", "true").lower() == "true"
@@ -299,7 +311,7 @@ else:
         """Non-Celery version"""
         return sync_scrape_all_users()
 
-    def scrape_user_task(user_id: str, job_id: Optional[str] = None):
+    def scrape_user_task_sync(user_id: str, job_id: Optional[str] = None):
         """Non-Celery version - runs sync version"""
         db = SessionLocal()
         try:
@@ -326,3 +338,6 @@ else:
                 }
         finally:
             db.close()
+
+    # Assign the sync version to the same name for compatibility
+    scrape_user_task = scrape_user_task_sync

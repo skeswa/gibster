@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gibster-celery
+  namespace: gibster
+  labels:
+    app: gibster
+    component: celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gibster
+      component: celery
+  template:
+    metadata:
+      labels:
+        app: gibster
+        component: celery
+    spec:
+      containers:
+      - name: celery
+        image: gibster-backend:latest
+        command: ["python", "run_worker.py"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: gibster-secrets
+              key: database-url
+        - name: REDIS_HOST
+          value: "redis.redis.svc.cluster.local"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gibster-secrets
+              key: redis-password
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gibster-secrets
+              key: secret-key
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gibster-secrets
+              key: encryption-key
+        - name: ENVIRONMENT
+          value: "production"
+        livenessProbe:
+          exec:
+            command:
+            - celery
+            - -A
+            - app.worker
+            - inspect
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
