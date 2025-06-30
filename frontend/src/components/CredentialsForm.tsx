@@ -80,7 +80,10 @@ const CredentialsForm: React.FC = () => {
     setError('');
 
     try {
-      const response = await apiClient.put('/api/v1/user/credentials', formData);
+      const response = await apiClient.put(
+        '/api/v1/user/credentials',
+        formData
+      );
 
       if (!response.ok) {
         const errorData = await response.json();

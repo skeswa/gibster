@@ -22,11 +22,11 @@ describe('API Client - Session Expiry', () => {
     // Clear all mocks
     jest.clearAllMocks();
     mockLocationHref.mockClear();
-    
+
     // Clear localStorage and cookies
     localStorage.clear();
     document.cookie = '';
-    
+
     // Set up a mock token
     localStorage.setItem('token', 'mock-jwt-token');
   });
@@ -53,10 +53,10 @@ describe('API Client - Session Expiry', () => {
 
       // Check that we were redirected to login
       expect(mockLocationHref).toHaveBeenCalledWith('/login');
-      
+
       // Check that token was cleared from localStorage
       expect(localStorage.getItem('token')).toBeNull();
-      
+
       // Check that cookie was cleared
       // Note: document.cookie in jsdom doesn't show expired cookies
       expect(document.cookie).not.toContain('token=mock-jwt-token');
@@ -79,7 +79,7 @@ describe('API Client - Session Expiry', () => {
 
       // Should not redirect
       expect(mockLocationHref).not.toHaveBeenCalled();
-      
+
       // Token should still be in localStorage
       expect(localStorage.getItem('token')).toBe('mock-jwt-token');
     });
@@ -106,7 +106,7 @@ describe('API Client - Session Expiry', () => {
 
       // Should not redirect
       expect(mockLocationHref).not.toHaveBeenCalled();
-      
+
       expect(response.ok).toBe(true);
     });
 

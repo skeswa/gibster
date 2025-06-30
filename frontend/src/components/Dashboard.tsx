@@ -34,7 +34,6 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-
 interface User {
   id: string;
   email: string;
@@ -178,7 +177,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         setTimeout(() => {
           const interval = setInterval(async () => {
             try {
-              const statusResponse = await apiClient.get('/api/v1/user/sync/status');
+              const statusResponse = await apiClient.get(
+                '/api/v1/user/sync/status'
+              );
 
               if (statusResponse.ok) {
                 const freshStatus = await statusResponse.json();
@@ -340,13 +341,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
               </div>
             )}
-            
+
             {calendarUrl && (
               <Alert className='mt-4'>
                 <AlertCircle className='h-4 w-4' />
                 <AlertDescription>
-                  Your calendar will automatically update when bookings
-                  change. Most apps refresh every 2-24 hours.
+                  Your calendar will automatically update when bookings change.
+                  Most apps refresh every 2-24 hours.
                 </AlertDescription>
               </Alert>
             )}
