@@ -54,7 +54,7 @@ const Login: React.FC = () => {
 
         if (profileResponse.ok) {
           const userData = await profileResponse.json();
-          
+
           // Use the login method from AuthContext which will handle token storage and navigation
           login(data.access_token, userData);
         } else {

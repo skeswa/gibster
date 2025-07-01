@@ -276,17 +276,17 @@ class GibneyScraper:
 
     async def scrape_rentals(self) -> List[Dict[str, Any]]:
         """Scrape rental data from the rentals page, handling pagination
-        
+
         This method will:
         1. Navigate to the rentals page if not already there
         2. Scrape all bookings from the current page
         3. Look for pagination controls (Next button)
         4. Continue to next pages until no more pages exist
         5. Return all bookings from all pages
-        
+
         Returns:
             List of rental dictionaries containing booking information
-            
+
         Raises:
             GibneyScrapingError: If scraping fails or login wasn't performed
         """
@@ -309,10 +309,10 @@ class GibneyScraper:
             all_rentals = []
             page_number = 1
             max_pages = 100  # Safety limit to prevent infinite loops
-            
+
             while page_number <= max_pages:
                 logger.info(f"Scraping page {page_number}...")
-                
+
                 # Get page content
                 content = await self.page.content()
                 soup = BeautifulSoup(content, "lxml")
@@ -327,7 +327,9 @@ class GibneyScraper:
 
                 rows = soup.select("table.forceRecordLayout tbody tr")
 
-                logger.info(f"Found {len(rows)} rental rows to process on page {page_number}")
+                logger.info(
+                    f"Found {len(rows)} rental rows to process on page {page_number}"
+                )
 
                 # If no rows found, try alternative selectors
                 if len(rows) == 0:
@@ -396,7 +398,9 @@ class GibneyScraper:
                         href = str(rental_link.get("href", ""))
                         # Try both URL patterns: query parameter and path segment
                         # Also handle IDs that may be shorter than 15 characters
-                        record_id_match = re.search(r"Id=([a-zA-Z0-9]+)", href) or re.search(r"/([a-zA-Z0-9]{15,18})/", href)
+                        record_id_match = re.search(
+                            r"Id=([a-zA-Z0-9]+)", href
+                        ) or re.search(r"/([a-zA-Z0-9]{15,18})/", href)
                         record_id = (
                             record_id_match.group(1)
                             if record_id_match
@@ -427,7 +431,9 @@ class GibneyScraper:
                                     start_dt = datetime.strptime(
                                         start_time_str, date_format
                                     )
-                                    end_dt = datetime.strptime(end_time_str, date_format)
+                                    end_dt = datetime.strptime(
+                                        end_time_str, date_format
+                                    )
                                     logger.debug(
                                         f"Successfully parsed dates using format: {date_format}"
                                     )
@@ -488,11 +494,13 @@ class GibneyScraper:
 
                 # Add this page's rentals to the total
                 all_rentals.extend(page_rentals)
-                logger.info(f"Scraped {len(page_rentals)} rentals from page {page_number}")
-                
+                logger.info(
+                    f"Scraped {len(page_rentals)} rentals from page {page_number}"
+                )
+
                 # Check for pagination controls
                 logger.debug("Looking for pagination controls...")
-                
+
                 # Common pagination selectors to try
                 pagination_selectors = [
                     'button:has-text("Next")',
@@ -501,14 +509,14 @@ class GibneyScraper:
                     'a[aria-label*="Next"]',
                     '.slds-button:has-text("Next")',
                     'lightning-button:has-text("Next")',
-                    'button.nextButton',
-                    'a.next-page',
+                    "button.nextButton",
+                    "a.next-page",
                     '[data-aura-class*="uiPager"] button:has-text("Next")',
                     '.uiPager button:has-text("Next")',
                     'button[title="Next Page"]',
                     'a[title="Next Page"]',
                 ]
-                
+
                 next_button_found = False
                 for selector in pagination_selectors:
                     try:
@@ -517,46 +525,62 @@ class GibneyScraper:
                         if next_button:
                             # Check if button is disabled
                             is_disabled = await next_button.get_attribute("disabled")
-                            aria_disabled = await next_button.get_attribute("aria-disabled")
-                            
+                            aria_disabled = await next_button.get_attribute(
+                                "aria-disabled"
+                            )
+
                             if is_disabled == "true" or aria_disabled == "true":
-                                logger.info(f"Next button found but disabled with selector: {selector}")
+                                logger.info(
+                                    f"Next button found but disabled with selector: {selector}"
+                                )
                                 break
-                            
+
                             # Click the next button
-                            logger.info(f"Found and clicking next button with selector: {selector}")
+                            logger.info(
+                                f"Found and clicking next button with selector: {selector}"
+                            )
                             await next_button.click()
                             next_button_found = True
-                            
+
                             # Wait for the page to load new content
                             logger.debug("Waiting for new page content to load...")
                             try:
                                 # Wait for table to update (might need to adjust selector)
-                                await self.page.wait_for_load_state("networkidle", timeout=10000)
-                                await self.page.wait_for_selector("table.forceRecordLayout", timeout=10000)
+                                await self.page.wait_for_load_state(
+                                    "networkidle", timeout=10000
+                                )
+                                await self.page.wait_for_selector(
+                                    "table.forceRecordLayout", timeout=10000
+                                )
                                 # Additional wait to ensure content is fully rendered
                                 await self.page.wait_for_timeout(2000)
                             except Exception as e:
-                                logger.warning(f"Timeout waiting for new page content: {e}")
-                            
+                                logger.warning(
+                                    f"Timeout waiting for new page content: {e}"
+                                )
+
                             page_number += 1
                             break
-                            
+
                     except Exception as e:
                         logger.debug(f"Pagination selector {selector} failed: {e}")
                         continue
-                
+
                 # If no next button found or it's disabled, we're done
                 if not next_button_found:
                     logger.info("No more pages found - pagination complete")
                     break
-                
+
                 # Safety check to prevent infinite loops
                 if page_number > max_pages:
-                    logger.warning(f"Reached maximum page limit ({max_pages}), stopping pagination")
+                    logger.warning(
+                        f"Reached maximum page limit ({max_pages}), stopping pagination"
+                    )
                     break
 
-            logger.info(f"Successfully scraped {len(all_rentals)} total rentals across {page_number} page(s)")
+            logger.info(
+                f"Successfully scraped {len(all_rentals)} total rentals across {page_number} page(s)"
+            )
             return all_rentals
 
         except Exception as e:
