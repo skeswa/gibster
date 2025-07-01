@@ -13,6 +13,8 @@ Gibster synchronizes Gibney dance space bookings with personal calendars. It con
 
 ## Essential Commands
 
+**Important**: Always use absolute paths when running commands to avoid path confusion. The development SQLite database (`gibster_dev.db`) is located in the `backend/` directory and should only be accessed from there.
+
 ### Backend Development
 
 ```bash
@@ -32,6 +34,8 @@ isort backend/                   # Sort imports
 
 # Database
 cd backend && alembic upgrade head       # Run migrations
+# Note: Always run database commands from the backend/ directory
+# The SQLite database file is at backend/gibster_dev.db
 ```
 
 ### Kubernetes Deployment
@@ -121,3 +125,14 @@ gibster/
 - Backend config: `backend/app/core/config.py`
 - Frontend config: `frontend/next.config.ts`
 - Test markers: `unit`, `integration` in `backend/pytest.ini`
+
+### Important Development Notes
+
+1. **Database Location**: In development, the SQLite database is always located at `backend/gibster_dev.db`. Never reference or create database files outside the backend directory.
+
+2. **Path Usage**: Always use absolute paths when running commands or referencing files to avoid confusion. For example:
+   - Good: `/Users/username/repos/gibster/backend/gibster_dev.db`
+   - Good: `cd /Users/username/repos/gibster/backend && alembic upgrade head`
+   - Bad: `../gibster_dev.db` or relative paths that might create files in wrong locations
+
+3. **Database Commands**: Always execute database-related commands (migrations, sqlite3 commands) from within the `backend/` directory to ensure the correct database file is used.

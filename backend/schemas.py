@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -79,3 +79,22 @@ class SyncStartResponse(BaseModel):
 class SyncStatusResponse(BaseModel):
     job: SyncJobResponse
     last_sync_at: Optional[datetime]
+
+
+# Sync Job Log schemas
+class SyncJobLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    sync_job_id: UUID
+    timestamp: datetime
+    level: str
+    message: str
+    details: Optional[Dict[str, Any]]
+
+
+class SyncJobLogsResponse(BaseModel):
+    logs: List[SyncJobLogResponse]
+    total: int
+    page: int
+    limit: int

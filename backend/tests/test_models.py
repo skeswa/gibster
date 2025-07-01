@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 
 import pytest
-from backend.auth import get_password_hash
-from backend.models import Booking, User
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
+
+from backend.auth import get_password_hash
+from backend.models import Booking, User
 
 
 @pytest.mark.unit

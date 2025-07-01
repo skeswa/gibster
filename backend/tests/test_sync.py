@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+
 from backend.models import SyncJob, User
 from backend.worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
 

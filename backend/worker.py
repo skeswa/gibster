@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from .logging_config import get_logger
 from .models import SyncJob, User
 from .scraper import scrape_user_bookings
+from .sync_logger import SyncJobLogger
 
 # Load environment variables from backend/.env
 env_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -95,11 +96,13 @@ async def sync_scrape_user_with_job_tracking(
     """Async version for when Celery is not available, with job tracking"""
     logger.info(f"Starting sync_scrape_user_with_job_tracking for user: {user.email}")
     job = None
+    sync_logger = None
 
     try:
         # Ensure database session is working
         try:
-            db.execute("SELECT 1")
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
         except Exception as db_error:
             logger.error(f"Database connection error: {db_error}")
             raise Exception("Database connection failed")
@@ -120,6 +123,10 @@ async def sync_scrape_user_with_job_tracking(
             db.commit()
             db.refresh(job)
 
+        # Initialize sync logger
+        sync_logger = SyncJobLogger(db, job.id)
+        sync_logger.info(f"Sync job started for user {user.email}", user_email=user.email)
+
         # Update job status with error handling
         logger.debug(f"Updating job {job.id} status to running")
         try:
@@ -127,8 +134,11 @@ async def sync_scrape_user_with_job_tracking(
             setattr(job, "progress", "Connecting to Gibney...")
             setattr(job, "last_updated_at", datetime.utcnow())
             db.commit()
+            sync_logger.info("Job status updated to running")
         except Exception as db_error:
             logger.error(f"Failed to update job status to running: {db_error}")
+            if sync_logger:
+                sync_logger.error("Failed to update job status", error=db_error)
             db.rollback()
             raise
 
@@ -139,13 +149,21 @@ async def sync_scrape_user_with_job_tracking(
             setattr(job, "progress", "Logging into Gibney...")
             setattr(job, "last_updated_at", datetime.utcnow())
             db.commit()
+            sync_logger.info("Starting login process")
         except Exception as db_error:
             logger.warning(f"Failed to update progress: {db_error}")
             db.rollback()
 
         # Perform the actual scraping
         logger.debug("Starting scraper execution")
-        updated_bookings = await scrape_user_bookings(db, user)
+        sync_logger.info("Initiating scraper for Gibney bookings")
+        scraper_start_time = datetime.utcnow()
+        
+        # Pass sync_logger to scraper
+        updated_bookings = await scrape_user_bookings(db, user, sync_logger)
+        
+        sync_logger.log_timing("Scraping process", scraper_start_time, 
+                              bookings_found=len(updated_bookings))
 
         # Update progress with error handling
         try:
@@ -153,6 +171,7 @@ async def sync_scrape_user_with_job_tracking(
             setattr(job, "bookings_synced", len(updated_bookings))
             setattr(job, "last_updated_at", datetime.utcnow())
             db.commit()
+            sync_logger.info(f"Found {len(updated_bookings)} bookings to process")
         except Exception as db_error:
             logger.warning(f"Failed to update booking count: {db_error}")
             db.rollback()
@@ -161,6 +180,7 @@ async def sync_scrape_user_with_job_tracking(
         logger.debug("Updating user's last sync time")
         setattr(user, "last_sync_at", datetime.utcnow())
         db.commit()
+        sync_logger.info("Updated user's last sync timestamp")
 
         # Complete the job with error handling
         try:
@@ -171,8 +191,14 @@ async def sync_scrape_user_with_job_tracking(
             setattr(job, "completed_at", datetime.utcnow())
             setattr(job, "last_updated_at", datetime.utcnow())
             db.commit()
+            
+            # Note: The sync_logger.log_sync_summary is already called in scraper
+            # with the correct counts, so we don't need to call it again here
+            sync_logger.info("Sync completed successfully")
         except Exception as db_error:
             logger.error(f"Failed to mark job as completed: {db_error}")
+            if sync_logger:
+                sync_logger.error("Failed to update job completion status", error=db_error)
             db.rollback()
             # Don't raise here - sync was successful even if we can't update status
 
@@ -195,20 +221,36 @@ async def sync_scrape_user_with_job_tracking(
     except Exception as e:
         logger.error(f"Failed to scrape bookings for {user.email}: {e}", exc_info=True)
 
+        # Log error to sync job logs
+        if sync_logger:
+            sync_logger.error(f"Sync failed: {str(e)}", error=e)
+
         # Determine error type for better user feedback
         error_message = str(e)
         if "Invalid credentials" in error_message or "Login failed" in error_message:
             user_friendly_error = "Invalid Gibney credentials. Please update your login information."
+            if sync_logger:
+                sync_logger.error("Authentication failed - invalid credentials")
         elif "timeout" in error_message.lower():
             user_friendly_error = "Connection timed out. Gibney website may be slow or unavailable."
+            if sync_logger:
+                sync_logger.error("Connection timeout - Gibney site may be down")
         elif "network" in error_message.lower() or "connection" in error_message.lower():
             user_friendly_error = "Network error. Please check your internet connection."
+            if sync_logger:
+                sync_logger.error("Network connectivity issue")
         elif "database" in error_message.lower():
             user_friendly_error = "Database error. Please try again later."
+            if sync_logger:
+                sync_logger.error("Database operation failed")
         elif "browser" in error_message.lower() or "playwright" in error_message.lower():
             user_friendly_error = "Browser automation error. Please contact support."
+            if sync_logger:
+                sync_logger.error("Browser automation failed - possible Playwright issue")
         else:
             user_friendly_error = f"Sync error: {error_message}"
+            if sync_logger:
+                sync_logger.error(f"Unexpected error: {error_message}")
 
         if job:
             try:
@@ -218,6 +260,9 @@ async def sync_scrape_user_with_job_tracking(
                 setattr(job, "completed_at", datetime.utcnow())
                 setattr(job, "last_updated_at", datetime.utcnow())
                 db.commit()
+                
+                if sync_logger:
+                    sync_logger.info("Job marked as failed in database")
             except Exception as db_error:
                 logger.error(f"Failed to update job status in database: {db_error}")
                 db.rollback()
@@ -362,7 +407,10 @@ if USE_CELERY and celery_app:
             # Convert job_id to UUID if provided
             job_uuid = UUID(job_id) if job_id else None
 
-            result = sync_scrape_user_with_job_tracking(db, user, job_uuid)
+            # Run async version with asyncio
+            import asyncio
+            result = asyncio.run(sync_scrape_user_with_job_tracking(db, user, job_uuid))
+            
             logger.info(
                 f"Celery task: scrape_user_task completed for user {user.email}: {result}"
             )

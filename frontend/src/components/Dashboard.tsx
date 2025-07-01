@@ -32,7 +32,9 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
+  FileText,
 } from 'lucide-react';
+import SyncJobLogs from '@/components/SyncJobLogs';
 
 interface User {
   id: string;
@@ -93,6 +95,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [retryCount, setRetryCount] = useState(0);
   const [pollingIntervalId, setPollingIntervalId] =
     useState<NodeJS.Timeout | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -163,6 +167,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     } catch (error) {
       console.error('Failed to fetch sync status:', error);
     }
+  };
+
+  // Handle viewing logs
+  const handleViewLogs = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setShowLogsModal(true);
   };
 
   // Fetch sync history
@@ -584,6 +594,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                         >
                           {job.status}
                         </Badge>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='h-6 w-6 p-0'
+                          onClick={() => handleViewLogs(job.id)}
+                          title='View logs'
+                        >
+                          <FileText className='h-3 w-3' />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -686,6 +705,18 @@ const Dashboard: React.FC<DashboardProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Sync Job Logs Modal */}
+      {selectedJobId && (
+        <SyncJobLogs
+          jobId={selectedJobId}
+          isOpen={showLogsModal}
+          onClose={() => {
+            setShowLogsModal(false);
+            setSelectedJobId(null);
+          }}
+        />
+      )}
     </div>
   );
 };

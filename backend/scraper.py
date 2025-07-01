@@ -1,7 +1,7 @@
 import asyncio
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from bs4 import BeautifulSoup, Tag
 from playwright.async_api import Browser, Page, async_playwright
@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from .auth import decrypt_credential
 from .logging_config import get_logger
 from .models import Booking, User
+
+if TYPE_CHECKING:
+    from .sync_logger import SyncJobLogger
 
 # Configure logging
 logger = get_logger("scraper")
@@ -131,11 +134,15 @@ class GibneyScrapingError(Exception):
 
 
 class GibneyScraper:
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, sync_logger: Optional["SyncJobLogger"] = None):
         self.headless = headless
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
+        self.sync_logger = sync_logger
         logger.info(f"Initializing Gibney scraper (headless: {headless})")
+        
+        if self.sync_logger:
+            self.sync_logger.info("Initializing Gibney scraper", headless=headless)
 
     def __enter__(self):
         return self
@@ -165,16 +172,28 @@ class GibneyScraper:
             self.page = await self.browser.new_page()
 
             logger.info("Navigating to login page...")
+            if self.sync_logger:
+                self.sync_logger.log_scraper_event("navigation", "Navigating to login page", url=LOGIN_URL)
+                
+            login_start_time = datetime.now()
             await self.page.goto(LOGIN_URL)
+            
+            if self.sync_logger:
+                self.sync_logger.log_timing("Login page navigation", login_start_time)
 
             # Fill login form
             logger.debug("Filling login form")
+            if self.sync_logger:
+                self.sync_logger.info("Filling login credentials")
+                
             # The Gibney login page uses type-based selectors, not name attributes
             await self.page.fill('input[type="text"]', email)
             await self.page.fill('input[type="password"]', password)
 
             # Submit form - try multiple selectors since the button might not have type="submit"
             logger.info("Submitting login form...")
+            if self.sync_logger:
+                self.sync_logger.info("Attempting to submit login form")
 
             # Try different button selectors in order of preference
             button_selectors = [
@@ -201,14 +220,26 @@ class GibneyScraper:
                     continue
 
             if not button_clicked:
-                raise Exception(
-                    "Could not find or click login button with any selector"
-                )
+                error_msg = "Could not find or click login button with any selector"
+                if self.sync_logger:
+                    self.sync_logger.error(error_msg, selectors_tried=button_selectors)
+                raise Exception(error_msg)
 
             # Wait for redirect to home page after login
             logger.debug("Waiting for login redirect to home page...")
-            await self.page.wait_for_url("https://gibney.my.site.com/s/", timeout=30000)
-            logger.debug("Successfully redirected to home page")
+            if self.sync_logger:
+                self.sync_logger.info("Waiting for login redirect")
+                
+            try:
+                await self.page.wait_for_url("https://gibney.my.site.com/s/", timeout=30000)
+                logger.debug("Successfully redirected to home page")
+                if self.sync_logger:
+                    self.sync_logger.info("Login successful - redirected to home page")
+                    self.sync_logger.log_timing("Login process", login_start_time)
+            except Exception as e:
+                if self.sync_logger:
+                    self.sync_logger.error("Login failed - timeout waiting for redirect", error=e)
+                raise
 
             # Now navigate to My Rentals by clicking the link
             logger.debug("Looking for 'My Rentals' link...")
@@ -296,10 +327,16 @@ class GibneyScraper:
 
         try:
             logger.info("Starting rental data scraping...")
+            if self.sync_logger:
+                self.sync_logger.info("Starting rental data scraping")
+                
+            scraping_start_time = datetime.now()
 
             # Navigate to rentals page if not already there
             if RENTALS_URL not in self.page.url:
                 logger.debug("Navigating to rentals page")
+                if self.sync_logger:
+                    self.sync_logger.log_scraper_event("navigation", "Navigating to rentals page", url=RENTALS_URL)
                 await self.page.goto(RENTALS_URL)
 
             # Wait for page to load
@@ -312,6 +349,8 @@ class GibneyScraper:
 
             while page_number <= max_pages:
                 logger.info(f"Scraping page {page_number}...")
+                if self.sync_logger:
+                    self.sync_logger.info(f"Processing page {page_number} of bookings")
 
                 # Get page content
                 content = await self.page.content()
@@ -497,6 +536,13 @@ class GibneyScraper:
                 logger.info(
                     f"Scraped {len(page_rentals)} rentals from page {page_number}"
                 )
+                if self.sync_logger:
+                    self.sync_logger.info(
+                        f"Found {len(page_rentals)} bookings on page {page_number}",
+                        page_number=page_number,
+                        bookings_on_page=len(page_rentals),
+                        total_bookings_so_far=len(all_rentals)
+                    )
 
                 # Check for pagination controls
                 logger.debug("Looking for pagination controls...")
@@ -588,9 +634,14 @@ class GibneyScraper:
             raise GibneyScrapingError(f"Failed to scrape rentals: {e}")
 
 
-async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
+async def scrape_user_bookings(
+    db: Session, user: User, sync_logger: Optional["SyncJobLogger"] = None
+) -> List[Booking]:
     """Scrape bookings for a specific user and update the database"""
     logger.info(f"Starting booking scrape for user: {user.email}")
+    
+    if sync_logger:
+        sync_logger.info("Starting booking scrape", user_email=user.email)
 
     try:
         # Get encrypted credentials
@@ -604,16 +655,22 @@ async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
         gibney_password = decrypt_credential(str(user.gibney_password))
 
         # Scrape data
-        async with GibneyScraper(headless=True) as scraper:
+        async with GibneyScraper(headless=True, sync_logger=sync_logger) as scraper:
             await scraper.login(gibney_email, gibney_password)
             rental_data = await scraper.scrape_rentals()
 
         logger.info(
             f"Scraped {len(rental_data)} rentals from Gibney for user: {user.email}"
         )
+        
+        if sync_logger:
+            sync_logger.info(f"Processing {len(rental_data)} bookings from Gibney")
 
         # Convert to Booking objects and update database
         updated_bookings = []
+        created_count = 0
+        updated_count = 0
+        unchanged_count = 0
 
         # Remove old bookings that are no longer in the scraped data
         existing_booking_ids = {booking["id"] for booking in rental_data}
@@ -626,6 +683,13 @@ async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
 
         for old_booking in old_bookings:
             logger.info(f"Removing old booking: {old_booking.name}")
+            if sync_logger:
+                sync_logger.log_booking_processed(
+                    old_booking.id, 
+                    old_booking.name, 
+                    "deleted",
+                    reason="No longer in Gibney data"
+                )
             db.delete(old_booking)
 
         # Update or create bookings
@@ -640,13 +704,30 @@ async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
                 )
 
                 if existing_booking:
-                    # Update existing booking
+                    # Check if booking has actually changed
+                    changed = False
                     for key, value in booking_data.items():
-                        if key != "id":  # Don't update the ID
+                        if key != "id" and getattr(existing_booking, key) != value:
+                            changed = True
                             setattr(existing_booking, key, value)
+                    
                     setattr(existing_booking, "last_seen", datetime.utcnow())
                     updated_bookings.append(existing_booking)
-                    logger.debug(f"Updated existing booking: {booking_data['name']}")
+                    
+                    if changed:
+                        updated_count += 1
+                        logger.debug(f"Updated existing booking: {booking_data['name']}")
+                        if sync_logger:
+                            sync_logger.log_booking_processed(
+                                booking_data["id"],
+                                booking_data["name"],
+                                "updated",
+                                studio=booking_data["studio"],
+                                start_time=booking_data["start_time"]
+                            )
+                    else:
+                        unchanged_count += 1
+                        logger.debug(f"Booking unchanged: {booking_data['name']}")
                 else:
                     # Create new booking
                     new_booking = Booking(
@@ -664,7 +745,16 @@ async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
                     )
                     db.add(new_booking)
                     updated_bookings.append(new_booking)
+                    created_count += 1
                     logger.debug(f"Created new booking: {booking_data['name']}")
+                    if sync_logger:
+                        sync_logger.log_booking_processed(
+                            booking_data["id"],
+                            booking_data["name"],
+                            "created",
+                            studio=booking_data["studio"],
+                            start_time=booking_data["start_time"]
+                        )
 
             except Exception as e:
                 logger.error(
@@ -676,10 +766,22 @@ async def scrape_user_bookings(db: Session, user: User) -> List[Booking]:
         db.commit()
 
         logger.info(f"Updated {len(updated_bookings)} bookings for user {user.email}")
+        
+        if sync_logger:
+            sync_logger.log_sync_summary(
+                total_bookings=len(rental_data),
+                created=created_count,
+                updated=updated_count,
+                unchanged=unchanged_count,
+                errors=0
+            )
+        
         return updated_bookings
 
     except Exception as e:
         logger.error(f"Failed to scrape bookings for user {user.email}: {e}")
+        if sync_logger:
+            sync_logger.error(f"Scraping failed: {str(e)}", error=e)
         db.rollback()
         raise
 

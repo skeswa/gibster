@@ -1,7 +1,7 @@
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import List, cast
+from typing import List, Optional, cast
 from uuid import UUID
 
 from fastapi import (
@@ -33,10 +33,12 @@ from .auth import (
 from .calendar_generator import get_user_calendar
 from .database import engine, get_db
 from .logging_config import get_logger, set_request_id, setup_logging
-from .models import Base, Booking, SyncJob, User
+from .models import Base, Booking, SyncJob, SyncJobLog, User
 from .schemas import (
     BookingResponse,
     CalendarUrl,
+    SyncJobLogResponse,
+    SyncJobLogsResponse,
     SyncJobResponse,
     SyncStartResponse,
     SyncStatusResponse,
@@ -749,6 +751,75 @@ async def get_calendar_feed(calendar_uuid: str, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate calendar",
+        )
+
+
+@app.get("/api/v1/user/sync/job/{job_id}/logs", response_model=SyncJobLogsResponse)
+async def get_sync_job_logs(
+    job_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    page: int = 1,
+    limit: int = 100,
+    level: Optional[str] = None,
+):
+    """Get logs for a specific sync job"""
+    logger.debug(f"Retrieving logs for sync job {job_id} requested by {current_user.email}")
+    
+    try:
+        # Verify the job belongs to the user
+        job = db.query(SyncJob).filter(
+            SyncJob.id == job_id,
+            SyncJob.user_id == current_user.id
+        ).first()
+        
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sync job not found"
+            )
+        
+        # Build query for logs
+        query = db.query(SyncJobLog).filter(SyncJobLog.sync_job_id == job_id)
+        
+        # Filter by level if specified
+        if level:
+            query = query.filter(SyncJobLog.level == level.upper())
+        
+        # Order by timestamp
+        query = query.order_by(SyncJobLog.timestamp.desc())
+        
+        # Get total count
+        total = query.count()
+        
+        # Pagination
+        offset = (page - 1) * limit
+        logs = query.offset(offset).limit(limit).all()
+        
+        return SyncJobLogsResponse(
+            logs=[
+                SyncJobLogResponse(
+                    id=cast(UUID, log.id),
+                    sync_job_id=cast(UUID, log.sync_job_id),
+                    timestamp=log.timestamp,  # type: ignore
+                    level=cast(str, log.level),
+                    message=cast(str, log.message),
+                    details=log.details if log.details else {}
+                )
+                for log in logs
+            ],
+            total=total,
+            page=page,
+            limit=limit
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve sync job logs: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve sync job logs"
         )
 
 
