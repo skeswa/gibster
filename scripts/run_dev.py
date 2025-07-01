@@ -34,18 +34,18 @@ def check_venv():
 
 def check_env_file():
     """Check if .env file exists and has required variables"""
-    env_file = Path(".env")
+    env_file = Path("backend/.env")
     if not env_file.exists():
-        print("❌ .env file not found")
-        print("   Run: python dev_setup.py")
+        print("❌ backend/.env file not found")
+        print("   Run: python scripts/dev_setup.py")
         return False
 
     # Check for required Gibney credentials
     with open(env_file) as f:
         content = f.read()
         if "your-email@example.com" in content or "your-password" in content:
-            print("⚠️  Please update .env with your actual Gibney credentials")
-            print("   Edit GIBNEY_EMAIL and GIBNEY_PASSWORD in .env")
+            print("⚠️  Please update backend/.env with your actual Gibney credentials")
+            print("   Edit GIBNEY_EMAIL and GIBNEY_PASSWORD in backend/.env")
 
     return True
 
