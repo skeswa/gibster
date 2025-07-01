@@ -158,7 +158,7 @@ python run_tests.py --backend-only --type integration
 python run_tests.py --verbose
 
 # Using pytest directly (backend only)
-pytest -v --cov=app
+pytest -v --cov=backend backend
 ```
 
 The test runner automatically detects and runs:
@@ -260,34 +260,36 @@ npm run type-check
 ### Test Scraper
 
 ```bash
-# Set credentials in .env
-echo "GIBNEY_EMAIL=your-email@example.com" >> .env
-echo "GIBNEY_PASSWORD=your-password" >> .env
+# Set credentials in backend/.env
+echo "GIBNEY_EMAIL=your-email@example.com" >> backend/.env
+echo "GIBNEY_PASSWORD=your-password" >> backend/.env
 
-python test_scraper.py
+python scripts/test_scraper.py
 ```
 
 ## Configuration
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and customize the values:
+Environment variables are now split between backend and frontend:
+
+#### Backend Configuration
+
+Copy `backend/.env.example` to `backend/.env` and customize the values:
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-#### Required Variables
+**Required Backend Variables:**
 
-- **`GIBNEY_EMAIL`** - Your Gibney login email
-- **`GIBNEY_PASSWORD`** - Your Gibney login password  
 - **`SECRET_KEY`** - JWT signing key (generate with `openssl rand -hex 32`)
 - **`ENCRYPTION_KEY`** - Credential encryption key (generate with `openssl rand -hex 32`)
 
 #### Database Configuration
 
 **Local Development (default):**
-- Uses SQLite database (`gibster_dev.db`)
+- Uses SQLite database (`backend/gibster_dev.db`)
 - No additional configuration needed
 
 **Production:**
@@ -310,12 +312,21 @@ REDIS_URL=redis://localhost:6379/0
 
 #### Frontend Configuration
 
-**Next.js Environment Variables:**
+Copy `frontend/.env.example` to `frontend/.env.local` and customize the values:
+
 ```bash
-NEXT_PUBLIC_API_BASE=http://localhost:8000  # API backend URL for client-side
+cp frontend/.env.example frontend/.env.local
 ```
 
-Note: Frontend now uses `NEXT_PUBLIC_` prefix instead of `REACT_APP_` for client-side environment variables.
+**Frontend Variables:**
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000  # API backend URL for client-side
+```
+
+Note: 
+- Next.js uses `.env.local` for local environment variables
+- Variables must be prefixed with `NEXT_PUBLIC_` to be accessible in the browser
 
 #### Server Configuration
 

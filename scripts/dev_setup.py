@@ -85,7 +85,7 @@ def install_dependencies():
 
     # Install requirements
     run_command(
-        f"{pip_path} install -r requirements.txt", "Installing Python dependencies"
+        f"{pip_path} install -r backend/requirements.txt", "Installing Python dependencies"
     )
 
     # Install Playwright browsers
@@ -121,39 +121,43 @@ def install_frontend_dependencies():
 
 
 def create_env_file():
-    """Create .env file from .env.example if it doesn't exist"""
-    env_file = Path(".env")
-    env_example = Path(".env.example")
-
-    if not env_file.exists():
-        if env_example.exists():
-            import shutil
-
-            shutil.copy(env_example, env_file)
-            print("✅ Created .env file from .env.example")
+    """Create .env files from .env.example if they don't exist"""
+    import shutil
+    
+    # Create backend/.env
+    backend_env_file = Path("backend/.env")
+    backend_env_example = Path("backend/.env.example")
+    
+    if not backend_env_file.exists():
+        if backend_env_example.exists():
+            shutil.copy(backend_env_example, backend_env_file)
+            print("✅ Created backend/.env file from backend/.env.example")
         else:
-            # Fallback if .env.example doesn't exist
-            env_content = """# Gibster Local Development Configuration
-# Copy from .env.example and customize
-
-GIBNEY_EMAIL=your-email@example.com
-GIBNEY_PASSWORD=your-password
-SECRET_KEY=development-secret-key-change-in-production
-ENCRYPTION_KEY=development-encryption-key-change-in-production
-USE_CELERY=false
-DATABASE_DEBUG=false
-APP_HOST=127.0.0.1
-APP_PORT=8000
-APP_RELOAD=true
-"""
-            with open(env_file, "w") as f:
-                f.write(env_content)
-            print("✅ Created .env file with basic configuration")
-
-        print("⚠️  IMPORTANT: Edit .env file and set your actual Gibney credentials")
-        print("   Also generate secure SECRET_KEY and ENCRYPTION_KEY for production")
+            print("⚠️  backend/.env.example not found, please create backend/.env manually")
+        
+        print("⚠️  IMPORTANT: Edit backend/.env file and set your actual values")
+        print("   Generate secure SECRET_KEY and ENCRYPTION_KEY for production")
     else:
-        print("✅ .env file already exists")
+        print("✅ backend/.env file already exists")
+    
+    # Create frontend/.env.local
+    frontend_env_file = Path("frontend/.env.local")
+    frontend_env_example = Path("frontend/.env.example")
+    
+    if not frontend_env_file.exists():
+        if frontend_env_example.exists():
+            shutil.copy(frontend_env_example, frontend_env_file)
+            print("✅ Created frontend/.env.local file from frontend/.env.example")
+        else:
+            # Create a basic frontend env file
+            frontend_env_content = """# Frontend Environment Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8000
+"""
+            with open(frontend_env_file, "w") as f:
+                f.write(frontend_env_content)
+            print("✅ Created frontend/.env.local file with default configuration")
+    else:
+        print("✅ frontend/.env.local file already exists")
 
 
 def initialize_database():
@@ -164,10 +168,23 @@ def initialize_database():
     else:  # Unix/Linux/macOS
         python_path = "venv/bin/python"
 
-    run_command(
-        f"{python_path} -c \"from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')\"",
-        "Initializing SQLite database",
+    # Set PYTHONPATH to ensure backend module can be imported
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.getcwd()
+
+    result = subprocess.run(
+        [python_path, "-c", "from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')"],
+        capture_output=True,
+        text=True,
+        env=env
     )
+    
+    if result.returncode != 0:
+        print(f"❌ Initializing SQLite database failed: {result.stderr}")
+        return None
+    
+    print(f"✅ Initializing SQLite database completed successfully")
+    return result
 
 
 def check_optional_services():

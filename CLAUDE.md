@@ -96,7 +96,12 @@ gibster/
 │   │   ├── models/    # SQLAlchemy models
 │   │   └── schemas/   # Pydantic schemas
 │   ├── tests/         # Backend tests
-│   └── alembic/       # Database migrations
+│   ├── logs/          # Application logs
+│   ├── alembic/       # Database migrations
+│   ├── requirements.txt # Python dependencies
+│   ├── pyproject.toml  # Python project config
+│   ├── pytest.ini      # Pytest configuration
+│   └── gibster_dev.db  # SQLite development database
 ├── frontend/
 │   ├── app/           # Next.js app directory
 │   ├── components/    # React components
@@ -111,7 +116,8 @@ gibster/
 
 ### Development Configuration
 
-- Environment variables in `.env` (copy from `.env.example`)
+- Backend environment variables in `backend/.env` (copy from `backend/.env.example`)
+- Frontend environment variables in `frontend/.env.local` (copy from `frontend/.env.example`)
 - Backend config: `backend/app/core/config.py`
 - Frontend config: `frontend/next.config.ts`
-- Test markers: `unit`, `integration` in `pytest.ini`
+- Test markers: `unit`, `integration` in `backend/pytest.ini`

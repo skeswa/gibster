@@ -23,7 +23,7 @@ describe('Header Component', () => {
 
     expect(screen.getByText('Gibster')).toBeInTheDocument();
     expect(screen.getByText('Login')).toBeInTheDocument();
-    expect(screen.getByText('Register')).toBeInTheDocument();
+    expect(screen.getByText('Sign Up')).toBeInTheDocument();
   });
 
   test('renders user info and navigation when user is logged in', () => {
@@ -31,7 +31,7 @@ describe('Header Component', () => {
     render(<Header user={mockUser} onLogout={mockLogout} />);
 
     expect(screen.getByText('Gibster')).toBeInTheDocument();
-    expect(screen.getByText(`Welcome, ${mockUser.email}`)).toBeInTheDocument();
+    expect(screen.getByText(mockUser.email)).toBeInTheDocument();
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByText('Logout')).toBeInTheDocument();

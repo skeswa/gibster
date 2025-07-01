@@ -16,7 +16,7 @@ Formats all code in the repository using appropriate tools for each language:
 ```
 
 **Prerequisites:**
-- Python packages: `black` and `isort` (automatically installed with `pip install -r requirements.txt`)
+- Python packages: `black` and `isort` (automatically installed with `pip install -r backend/requirements.txt`)
 - Node.js and npm (for frontend formatting)
 - `shfmt` (optional, for shell script formatting)
 
@@ -32,7 +32,7 @@ Returns exit code 0 if all code is properly formatted, exit code 1 if formatting
 
 ## Configuration
 
-- **Python formatting**: Configured in `pyproject.toml`
+- **Python formatting**: Configured in `backend/pyproject.toml`
 - **Frontend formatting**: Configured in `frontend/.prettierrc`
 
 ## Integration with Development Workflow
@@ -136,5 +136,5 @@ The scripts have been updated to work correctly from their new location:
 ## Dependencies
 
 Some scripts require additional dependencies to be installed:
-- Run `pip install -r requirements.txt` from the root directory
+- Run `pip install -r backend/requirements.txt` from the root directory
 - For Playwright scripts: `playwright install chromium` 

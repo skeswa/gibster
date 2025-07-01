@@ -7,13 +7,15 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .logging_config import get_logger
 
-load_dotenv()
+# Load environment variables from backend/.env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 logger = get_logger("database")
 
 # Database configuration
 # Default to SQLite for local development, but allow PostgreSQL via environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gibster_dev.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/gibster_dev.db")
 
 logger.info(f"Configuring database connection to: {DATABASE_URL.split('://')[0]}://...")
 

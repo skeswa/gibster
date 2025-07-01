@@ -7,7 +7,9 @@ from typing import Any, Dict
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables from backend/.env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 
 class StructuredFormatter(logging.Formatter):
@@ -108,7 +110,7 @@ def setup_logging() -> None:
                 "class": "logging.handlers.RotatingFileHandler",
                 "formatter": "structured",
                 "filters": ["noise_reducer"],
-                "filename": "logs/gibster.log",
+                "filename": "backend/logs/gibster.log",
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5,
             },
@@ -165,7 +167,7 @@ def setup_logging() -> None:
     }
 
     # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs("backend/logs", exist_ok=True)
 
     # Apply configuration
     logging.config.dictConfig(config)

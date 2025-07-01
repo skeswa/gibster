@@ -12,7 +12,9 @@ from .logging_config import get_logger
 from .models import SyncJob, User
 from .scraper import scrape_user_bookings
 
-load_dotenv()
+# Load environment variables from backend/.env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Configure logging
 logger = get_logger("worker")
@@ -57,7 +59,7 @@ else:
     celery_app = None
 
 # Database setup for worker
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gibster_dev.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/gibster_dev.db")
 logger.info(f"Worker database configuration: {DATABASE_URL.split('://')[0]}://...")
 
 if "sqlite" in DATABASE_URL:

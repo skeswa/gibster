@@ -22,7 +22,7 @@ def run_backend_tests(args):
     print("\n🔧 Running backend tests...")
 
     # Base pytest command
-    cmd = ["python3", "-m", "pytest"]
+    cmd = ["python3", "-m", "pytest", "backend"]
 
     # Add verbosity
     if args.verbose:
@@ -30,7 +30,7 @@ def run_backend_tests(args):
 
     # Add coverage if requested
     if args.coverage:
-        cmd.extend(["--cov=app", "--cov-report=html", "--cov-report=term"])
+        cmd.extend(["--cov=backend", "--cov-report=html", "--cov-report=term"])
 
     # Add test type filter
     if args.type == "unit":

@@ -35,6 +35,9 @@ RUN useradd --create-home --shell /bin/bash --uid 1000 app
 # Copy application code
 COPY --chown=app:app . .
 
+# Create logs directory
+RUN mkdir -p logs && chown app:app logs
+
 # Switch to non-root user
 USER app
 
@@ -46,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # Run the application
-CMD ["python", "run_server.py"] 
+CMD ["python", "start.py"]

@@ -68,7 +68,7 @@ GIBNEY_PASSWORD=your-password
 
     # Install Python dependencies
     if not run_command(
-        "pip install -r requirements.txt", "Installing Python dependencies"
+        "pip install -r backend/requirements.txt", "Installing Python dependencies"
     ):
         return False
 

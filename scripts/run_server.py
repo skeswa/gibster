@@ -5,12 +5,18 @@ Run with: python run_server.py
 """
 
 import os
+import sys
+
+# Add parent directory to Python path to ensure backend module can be imported
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import uvicorn
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from backend/.env
+backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend')
+env_path = os.path.join(backend_dir, '.env')
+load_dotenv(dotenv_path=env_path)
 
 
 def main():
