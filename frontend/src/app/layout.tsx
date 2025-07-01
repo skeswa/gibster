@@ -3,7 +3,7 @@ import '@/globals.css';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/app/providers/AuthProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
-import ServerHeader from '@/components/ServerHeader';
+import ClientHeader from '@/components/ClientHeader';
 import { getServerSession } from '@/lib/auth';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -39,7 +39,7 @@ export default async function RootLayout({
         >
           <AuthProvider initialUser={user}>
             <div className='min-h-screen'>
-              <ServerHeader user={user} />
+              <ClientHeader />
               <main className='container mx-auto px-4 py-8'>{children}</main>
             </div>
           </AuthProvider>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +45,21 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Set the JWT token in a cookie
-        document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Strict`;
+        // Fetch user profile data
+        const profileResponse = await apiClient.get('/api/v1/user/profile', {
+          headers: {
+            Authorization: `Bearer ${data.access_token}`,
+          },
+        });
 
-        // Redirect to dashboard
-        router.push('/dashboard');
+        if (profileResponse.ok) {
+          const userData = await profileResponse.json();
+          
+          // Use the login method from AuthContext which will handle token storage and navigation
+          login(data.access_token, userData);
+        } else {
+          setError('Failed to fetch user profile');
+        }
       } else {
         setError(data.detail || 'Invalid email or password');
       }
