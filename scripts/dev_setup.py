@@ -123,7 +123,7 @@ def install_frontend_dependencies():
 def create_env_file():
     """Create .env files from .env.example if they don't exist"""
     import shutil
-    
+
     # Create backend/.env
     backend_env_file = Path("backend/.env")
     backend_env_example = Path("backend/.env.example")

@@ -4,6 +4,7 @@ Backend startup script for Docker container
 """
 
 import os
+
 import uvicorn
 from dotenv import load_dotenv
 
