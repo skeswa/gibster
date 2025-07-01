@@ -17,13 +17,13 @@ Gibster synchronizes Gibney dance space bookings with personal calendars. It con
 
 ```bash
 # Setup and run
-python dev_setup.py              # One-time automated setup
 source venv/bin/activate         # Activate virtual environment
-python run_server.py             # Start development server (port 8000)
+python scripts/dev_setup.py      # One-time automated setup
+python scripts/run_server.py     # Start development server (port 8000)
 
 # Testing
-python run_tests.py --coverage   # Run all tests with coverage
-python run_tests.py --backend-only --type unit  # Unit tests only
+python scripts/run_tests.py --coverage   # Run all tests with coverage
+python scripts/run_tests.py --backend-only --type unit  # Unit tests only
 pytest -v backend/tests/test_some_file.py::test_function  # Run specific test
 
 # Code quality
@@ -31,7 +31,7 @@ black backend/                   # Format Python code
 isort backend/                   # Sort imports
 
 # Database
-alembic upgrade head            # Run migrations
+cd backend && alembic upgrade head       # Run migrations
 ```
 
 ### Kubernetes Deployment

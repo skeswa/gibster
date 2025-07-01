@@ -69,6 +69,10 @@ interface SyncStatus {
   last_sync_at?: string;
 }
 
+interface SyncHistory {
+  jobs: SyncJob[];
+}
+
 interface DashboardProps {
   user: User;
   bookings: Booking[];
@@ -81,10 +85,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   calendarUrl,
 }) => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncHistory, setSyncHistory] = useState<SyncJob[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [isPolling, setIsPolling] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [pollingIntervalId, setPollingIntervalId] =
+    useState<NodeJS.Timeout | null>(null);
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -157,10 +165,25 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  // Fetch sync history
+  const fetchSyncHistory = async () => {
+    try {
+      const response = await apiClient.get('/api/v1/user/sync/history?limit=5');
+
+      if (response.ok) {
+        const history: SyncHistory = await response.json();
+        setSyncHistory(history.jobs || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync history:', error);
+    }
+  };
+
   // Start manual sync
   const handleSyncNow = async () => {
     setIsLoading(true);
     setSyncMessage('');
+    setRetryCount(0);
 
     try {
       const response = await apiClient.post('/api/v1/user/sync');
@@ -170,12 +193,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         setSyncMessage('Sync started successfully! Checking for updates...');
         setIsPolling(true);
 
-        // Immediately fetch the initial status
-        await fetchSyncStatus();
+        // Immediately fetch the initial status and history
+        await Promise.all([fetchSyncStatus(), fetchSyncHistory()]);
 
         // Start polling for status updates after a short delay
         setTimeout(() => {
+          let pollCount = 0;
+          const maxPollCount = 200; // 5 minutes at 1.5 second intervals
+
           const interval = setInterval(async () => {
+            pollCount++;
+
             try {
               const statusResponse = await apiClient.get(
                 '/api/v1/user/sync/status'
@@ -184,6 +212,11 @@ const Dashboard: React.FC<DashboardProps> = ({
               if (statusResponse.ok) {
                 const freshStatus = await statusResponse.json();
                 setSyncStatus(freshStatus);
+
+                // Refresh history periodically
+                if (pollCount % 10 === 0) {
+                  fetchSyncHistory();
+                }
 
                 // Update message based on current status
                 if (freshStatus?.job?.status === 'running') {
@@ -198,8 +231,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                   freshStatus?.job?.status === 'failed'
                 ) {
                   clearInterval(interval);
+                  setPollingIntervalId(null);
                   setIsLoading(false);
                   setIsPolling(false);
+
+                  // Fetch final history
+                  await fetchSyncHistory();
 
                   if (freshStatus.job.status === 'completed') {
                     setSyncMessage(
@@ -211,25 +248,43 @@ const Dashboard: React.FC<DashboardProps> = ({
                     setSyncMessage(
                       `Sync failed: ${freshStatus.job.error_message || 'Unknown error'}`
                     );
+
+                    // Allow retry after failure
+                    setRetryCount(prev => prev + 1);
                   }
                 }
               } else {
                 console.error('Failed to fetch sync status during polling');
+
+                // If polling fails multiple times, stop
+                if (pollCount > 5) {
+                  clearInterval(interval);
+                  setPollingIntervalId(null);
+                  setIsLoading(false);
+                  setIsPolling(false);
+                  setSyncMessage(
+                    'Failed to check sync status. Please refresh the page.'
+                  );
+                }
               }
             } catch (error) {
               console.error('Error during status polling:', error);
             }
+
+            // Stop polling after max attempts
+            if (pollCount >= maxPollCount) {
+              clearInterval(interval);
+              setPollingIntervalId(null);
+              setIsLoading(false);
+              setIsPolling(false);
+              setSyncMessage(
+                'Sync is taking longer than expected. It may still be running in the background. Please check back later.'
+              );
+            }
           }, 1500); // Poll every 1.5 seconds for more responsive updates
 
-          // Stop polling after 5 minutes to avoid infinite polling
-          setTimeout(() => {
-            clearInterval(interval);
-            setIsLoading(false);
-            setIsPolling(false);
-            setSyncMessage(
-              'Sync is taking longer than expected. Please check back later or try again.'
-            );
-          }, 300000);
+          // Store the interval ID so we can cancel it if needed
+          setPollingIntervalId(interval);
         }, 500); // Wait 500ms before starting polling to allow job creation
       } else {
         const error = await response.json();
@@ -237,16 +292,36 @@ const Dashboard: React.FC<DashboardProps> = ({
           `Failed to start sync: ${error.detail || 'Unknown error'}`
         );
         setIsLoading(false);
+
+        // Allow retry
+        setRetryCount(prev => prev + 1);
       }
     } catch (error) {
-      setSyncMessage('Failed to start sync. Please try again.');
+      setSyncMessage(
+        'Failed to start sync. Please check your connection and try again.'
+      );
       setIsLoading(false);
+      setRetryCount(prev => prev + 1);
     }
   };
 
-  // Fetch initial sync status
+  // Handle canceling sync
+  const handleCancelSync = () => {
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+      setPollingIntervalId(null);
+    }
+    setIsPolling(false);
+    setIsLoading(false);
+    setSyncMessage(
+      'Sync monitoring cancelled. The sync may still be running in the background.'
+    );
+  };
+
+  // Fetch initial sync status and history
   useEffect(() => {
     fetchSyncStatus();
+    fetchSyncHistory();
   }, []);
 
   return (
@@ -377,11 +452,20 @@ const Dashboard: React.FC<DashboardProps> = ({
             )}
 
             <div className='flex flex-wrap gap-3'>
-              <Button onClick={handleSyncNow} disabled={isLoading || isPolling}>
-                {isLoading || isPolling ? (
+              <Button
+                onClick={isPolling ? handleCancelSync : handleSyncNow}
+                disabled={isLoading}
+                variant={isPolling ? 'destructive' : 'default'}
+              >
+                {isLoading ? (
                   <>
                     <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    {isLoading ? 'Starting Sync...' : 'Syncing...'}
+                    Starting Sync...
+                  </>
+                ) : isPolling ? (
+                  <>
+                    <XCircle className='mr-2 h-4 w-4' />
+                    Cancel Sync
                   </>
                 ) : (
                   <>
@@ -451,6 +535,60 @@ const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 <AlertDescription>{syncMessage}</AlertDescription>
               </Alert>
+            )}
+
+            {/* Retry button for failed syncs */}
+            {retryCount > 0 &&
+              !isLoading &&
+              !isPolling &&
+              syncMessage.includes('failed') && (
+                <Button onClick={handleSyncNow} variant='outline' size='sm'>
+                  <RefreshCw className='mr-2 h-4 w-4' />
+                  Retry Sync
+                </Button>
+              )}
+
+            {/* Sync History */}
+            {syncHistory.length > 0 && (
+              <div className='mt-4 space-y-2'>
+                <p className='text-sm font-medium text-muted-foreground'>
+                  Recent Sync History
+                </p>
+                <div className='space-y-1'>
+                  {syncHistory.slice(0, 3).map(job => (
+                    <div
+                      key={job.id}
+                      className='flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm'
+                    >
+                      <div className='flex items-center gap-2'>
+                        {getSyncStatusIcon(job.status)}
+                        <span className='text-muted-foreground'>
+                          {formatDate(job.started_at)}
+                        </span>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        {job.bookings_synced > 0 && (
+                          <span className='text-xs text-muted-foreground'>
+                            {job.bookings_synced} bookings
+                          </span>
+                        )}
+                        <Badge
+                          variant={
+                            job.status === 'completed'
+                              ? 'default'
+                              : job.status === 'failed'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                          className='text-xs'
+                        >
+                          {job.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             <p className='text-xs text-muted-foreground italic'>

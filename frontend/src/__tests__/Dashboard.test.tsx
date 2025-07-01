@@ -149,6 +149,23 @@ describe('Dashboard - Session Expiry', () => {
       }),
     });
 
+    // Mock sync history call that happens after sync start
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        jobs: [
+          {
+            id: '1',
+            status: 'completed',
+            bookings_synced: 5,
+            started_at: '2024-01-01T09:00:00Z',
+            completed_at: '2024-01-01T09:05:00Z',
+            triggered_manually: false,
+          },
+        ],
+      }),
+    });
+
     // Mock first status check successful, then 401
     (apiClient.get as jest.Mock)
       .mockResolvedValueOnce({
@@ -181,8 +198,8 @@ describe('Dashboard - Session Expiry', () => {
     // Wait for polling to occur
     await waitFor(
       () => {
-        // Should have called get at least 3 times (initial, after sync start, polling)
-        expect(apiClient.get).toHaveBeenCalledTimes(3);
+        // Should have called get at least 4 times (initial, sync history, status after sync, polling)
+        expect(apiClient.get).toHaveBeenCalledTimes(4);
       },
       { timeout: 3000 }
     );

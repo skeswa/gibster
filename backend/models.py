@@ -69,6 +69,7 @@ class SyncJob(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     triggered_manually = Column(Boolean, default=False)  # Track if sync was manual
+    last_updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Track last activity
 
     # Relationship
     user = relationship("User", back_populates="sync_jobs")
