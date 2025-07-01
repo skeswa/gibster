@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Gibster synchronizes Gibney dance space bookings with personal calendars. It consists of:
+
 - **Backend**: FastAPI (Python) REST API with PostgreSQL/SQLite
 - **Frontend**: Next.js 15 (TypeScript) React application
 - **Scraper**: Playwright-based Gibney website scraper
@@ -13,6 +14,7 @@ Gibster synchronizes Gibney dance space bookings with personal calendars. It con
 ## Essential Commands
 
 ### Backend Development
+
 ```bash
 # Setup and run
 python dev_setup.py              # One-time automated setup
@@ -33,6 +35,7 @@ alembic upgrade head            # Run migrations
 ```
 
 ### Kubernetes Deployment
+
 ```bash
 # Local development
 kubectl apply -k k8s/overlays/development
@@ -49,6 +52,7 @@ kubectl logs -l component=backend -f
 ```
 
 ### Frontend Development
+
 ```bash
 cd frontend
 npm run dev                     # Start development server (port 3000)
@@ -62,14 +66,17 @@ npm run format                  # Prettier formatting
 ## Architecture Overview
 
 ### Data Flow
+
 1. User interacts with Next.js frontend (port 3000)
 2. Frontend makes API calls to FastAPI backend (proxied to port 8000)
 3. Backend authenticates users via JWT tokens
 4. Backend stores encrypted Gibney credentials in database
 5. Celery workers (or sync tasks in dev) scrape Gibney website using Playwright
+   - Scraper handles pagination automatically to fetch all bookings across multiple pages
 6. Calendar feed (.ics) is generated and made available for subscription
 
 ### Key Architectural Decisions
+
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Credential Storage**: Gibney credentials encrypted with Fernet
 - **Database**: SQLAlchemy ORM with async support
@@ -78,6 +85,7 @@ npm run format                  # Prettier formatting
 - **Testing**: Separate unit/integration tests with pytest markers
 
 ### Project Structure
+
 ```
 gibster/
 ├── backend/
@@ -102,6 +110,7 @@ gibster/
 ```
 
 ### Development Configuration
+
 - Environment variables in `.env` (copy from `.env.example`)
 - Backend config: `backend/app/core/config.py`
 - Frontend config: `frontend/next.config.ts`

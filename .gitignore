@@ -270,4 +270,7 @@ tmp/
 temp/
 
 # Local chrome data
-.chrome/ 
+.chrome/
+
+# Debug files
+debug_rentals_page.html 

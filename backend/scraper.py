@@ -275,7 +275,21 @@ class GibneyScraper:
             raise GibneyScrapingError(f"Failed to login: {e}")
 
     async def scrape_rentals(self) -> List[Dict[str, Any]]:
-        """Scrape rental data from the rentals page"""
+        """Scrape rental data from the rentals page, handling pagination
+        
+        This method will:
+        1. Navigate to the rentals page if not already there
+        2. Scrape all bookings from the current page
+        3. Look for pagination controls (Next button)
+        4. Continue to next pages until no more pages exist
+        5. Return all bookings from all pages
+        
+        Returns:
+            List of rental dictionaries containing booking information
+            
+        Raises:
+            GibneyScrapingError: If scraping fails or login wasn't performed
+        """
         if not self.page:
             logger.error("Attempted to scrape rentals without logging in first")
             raise GibneyScrapingError("Must login first")
@@ -292,187 +306,258 @@ class GibneyScraper:
             logger.debug("Waiting for rental table to load")
             await self.page.wait_for_selector("table.forceRecordLayout", timeout=30000)
 
-            # Get page content
-            content = await self.page.content()
-            soup = BeautifulSoup(content, "lxml")
+            all_rentals = []
+            page_number = 1
+            max_pages = 100  # Safety limit to prevent infinite loops
+            
+            while page_number <= max_pages:
+                logger.info(f"Scraping page {page_number}...")
+                
+                # Get page content
+                content = await self.page.content()
+                soup = BeautifulSoup(content, "lxml")
 
-            # Debug: Save HTML content for inspection
-            try:
-                with open("debug_rentals_page.html", "w", encoding="utf-8") as f:
-                    f.write(content)
-                logger.debug(
-                    "Saved page HTML to debug_rentals_page.html for inspection"
-                )
-            except Exception as e:
-                logger.debug(f"Could not save debug HTML: {e}")
+                # Debug: Check what tables are available (only log on first page)
+                if page_number == 1:
+                    all_tables = soup.select("table")
+                    logger.debug(f"Found {len(all_tables)} tables on the page")
+                    for j, table in enumerate(all_tables):
+                        table_classes = table.get("class") or []
+                        logger.debug(f"  Table {j}: classes={table_classes}")
 
-            # Debug: Check what tables are available
-            all_tables = soup.select("table")
-            logger.debug(f"Found {len(all_tables)} tables on the page")
-            for j, table in enumerate(all_tables):
-                table_classes = table.get("class") or []
-                logger.debug(f"  Table {j}: classes={table_classes}")
+                rows = soup.select("table.forceRecordLayout tbody tr")
 
-            rentals = []
-            rows = soup.select("table.forceRecordLayout tbody tr")
+                logger.info(f"Found {len(rows)} rental rows to process on page {page_number}")
 
-            logger.info(f"Found {len(rows)} rental rows to process")
-
-            # If no rows found, try alternative selectors
-            if len(rows) == 0:
-                logger.warning(
-                    "No rows found with primary selector, trying alternatives..."
-                )
-                alternative_selectors = [
-                    "table tbody tr",
-                    ".forceRecordLayout tbody tr",
-                    "[data-aura-class*='uiVirtualDataTable'] tbody tr",
-                    "tbody tr",
-                ]
-
-                for alt_selector in alternative_selectors:
-                    alt_rows = soup.select(alt_selector)
-                    logger.debug(
-                        f"Alternative selector '{alt_selector}' found {len(alt_rows)} rows"
+                # If no rows found, try alternative selectors
+                if len(rows) == 0:
+                    logger.warning(
+                        "No rows found with primary selector, trying alternatives..."
                     )
-                    if len(alt_rows) > 0:
-                        rows = alt_rows
-                        logger.info(
-                            f"Using alternative selector '{alt_selector}' with {len(rows)} rows"
+                    alternative_selectors = [
+                        "table tbody tr",
+                        ".forceRecordLayout tbody tr",
+                        "[data-aura-class*='uiVirtualDataTable'] tbody tr",
+                        "tbody tr",
+                    ]
+
+                    for alt_selector in alternative_selectors:
+                        alt_rows = soup.select(alt_selector)
+                        logger.debug(
+                            f"Alternative selector '{alt_selector}' found {len(alt_rows)} rows"
                         )
-                        break
+                        if len(alt_rows) > 0:
+                            rows = alt_rows
+                            logger.info(
+                                f"Using alternative selector '{alt_selector}' with {len(rows)} rows"
+                            )
+                            break
 
-            for i, row in enumerate(rows):
-                cells = row.select("th, td")
-                if not cells or len(cells) < 8:
-                    logger.debug(
-                        f"Skipping row {i+1}: insufficient cells ({len(cells)})"
-                    )
-                    continue
-
-                try:
-                    # Debug: Log all cell contents for troubleshooting
-                    logger.debug(f"Row {i+1} has {len(cells)} cells:")
-                    for j, cell in enumerate(cells):
-                        cell_text = cell.get_text(strip=True)
-                        logger.debug(f"  Cell {j}: '{cell_text}'")
-
-                    # Extract data from each cell
-                    rental_link = cells[1].select_one("a")
-                    if not rental_link:
-                        logger.debug(f"Skipping row {i+1}: no rental link found")
+                # Process rows on current page
+                page_rentals = []
+                for i, row in enumerate(rows):
+                    cells = row.select("th, td")
+                    if not cells or len(cells) < 8:
+                        logger.debug(
+                            f"Skipping row {i+1}: insufficient cells ({len(cells)})"
+                        )
                         continue
 
-                    rental_name = rental_link.get_text(strip=True)
-                    start_time_str = cells[2].get_text(strip=True)
-                    end_time_str = cells[3].get_text(strip=True)
-                    studio = cells[4].get_text(strip=True)
-                    price_str = cells[5].get_text(strip=True)
-                    status = cells[6].get_text(strip=True)
-                    location = cells[7].get_text(strip=True)
-
-                    logger.debug(f"Extracted data for {rental_name}:")
-                    logger.debug(f"  Start time: '{start_time_str}'")
-                    logger.debug(f"  End time: '{end_time_str}'")
-                    logger.debug(f"  Studio: '{studio}'")
-                    logger.debug(f"  Price: '{price_str}'")
-                    logger.debug(f"  Status: '{status}'")
-                    logger.debug(f"  Location: '{location}'")
-
-                    # Extract record ID from href
-                    href = str(rental_link.get("href", ""))
-                    record_id_match = re.search(r"/([a-zA-Z0-9]{15,18})/", href)
-                    record_id = (
-                        record_id_match.group(1)
-                        if record_id_match
-                        else f"unknown_{rental_name}"
-                    )
-
-                    # Parse dates with multiple format support
                     try:
-                        logger.debug(
-                            f"Parsing start_time: '{start_time_str}', end_time: '{end_time_str}'"
+                        # Debug: Log all cell contents for troubleshooting
+                        logger.debug(f"Row {i+1} has {len(cells)} cells:")
+                        for j, cell in enumerate(cells):
+                            cell_text = cell.get_text(strip=True)
+                            logger.debug(f"  Cell {j}: '{cell_text}'")
+
+                        # Extract data from each cell
+                        rental_link = cells[1].select_one("a")
+                        if not rental_link:
+                            logger.debug(f"Skipping row {i+1}: no rental link found")
+                            continue
+
+                        rental_name = rental_link.get_text(strip=True)
+                        start_time_str = cells[2].get_text(strip=True)
+                        end_time_str = cells[3].get_text(strip=True)
+                        studio = cells[4].get_text(strip=True)
+                        price_str = cells[5].get_text(strip=True)
+                        status = cells[6].get_text(strip=True)
+                        location = cells[7].get_text(strip=True)
+
+                        logger.debug(f"Extracted data for {rental_name}:")
+                        logger.debug(f"  Start time: '{start_time_str}'")
+                        logger.debug(f"  End time: '{end_time_str}'")
+                        logger.debug(f"  Studio: '{studio}'")
+                        logger.debug(f"  Price: '{price_str}'")
+                        logger.debug(f"  Status: '{status}'")
+                        logger.debug(f"  Location: '{location}'")
+
+                        # Extract record ID from href
+                        href = str(rental_link.get("href", ""))
+                        # Try both URL patterns: query parameter and path segment
+                        # Also handle IDs that may be shorter than 15 characters
+                        record_id_match = re.search(r"Id=([a-zA-Z0-9]+)", href) or re.search(r"/([a-zA-Z0-9]{15,18})/", href)
+                        record_id = (
+                            record_id_match.group(1)
+                            if record_id_match
+                            else f"unknown_{rental_name}"
                         )
 
-                        # Try multiple date formats that Gibney might use
-                        date_formats = [
-                            "%m/%d/%Y %I:%M %p",  # 6/9/2025 7:00 PM
-                            "%b %d, %Y %I:%M %p",  # Jun 26, 2025 5:01 PM
-                            "%m/%d/%Y %H:%M",  # 6/9/2025 19:00
-                            "%Y-%m-%d %H:%M:%S",  # 2025-06-09 19:00:00
-                            "%Y-%m-%dT%H:%M:%S",  # 2025-06-09T19:00:00
-                        ]
-
-                        start_dt = None
-                        end_dt = None
-
-                        # Try parsing start time with different formats
-                        for date_format in date_formats:
-                            try:
-                                start_dt = datetime.strptime(
-                                    start_time_str, date_format
-                                )
-                                end_dt = datetime.strptime(end_time_str, date_format)
-                                logger.debug(
-                                    f"Successfully parsed dates using format: {date_format}"
-                                )
-                                break
-                            except ValueError:
-                                continue
-
-                        # If all parsing attempts failed
-                        if start_dt is None or end_dt is None:
-                            logger.warning(
-                                f"Failed to parse dates for {rental_name}: start='{start_time_str}', end='{end_time_str}'"
+                        # Parse dates with multiple format support
+                        try:
+                            logger.debug(
+                                f"Parsing start_time: '{start_time_str}', end_time: '{end_time_str}'"
                             )
+
+                            # Try multiple date formats that Gibney might use
+                            date_formats = [
+                                "%m/%d/%Y %I:%M %p",  # 6/9/2025 7:00 PM
+                                "%b %d, %Y %I:%M %p",  # Jun 26, 2025 5:01 PM
+                                "%m/%d/%Y %H:%M",  # 6/9/2025 19:00
+                                "%Y-%m-%d %H:%M:%S",  # 2025-06-09 19:00:00
+                                "%Y-%m-%dT%H:%M:%S",  # 2025-06-09T19:00:00
+                            ]
+
+                            start_dt = None
+                            end_dt = None
+
+                            # Try parsing start time with different formats
+                            for date_format in date_formats:
+                                try:
+                                    start_dt = datetime.strptime(
+                                        start_time_str, date_format
+                                    )
+                                    end_dt = datetime.strptime(end_time_str, date_format)
+                                    logger.debug(
+                                        f"Successfully parsed dates using format: {date_format}"
+                                    )
+                                    break
+                                except ValueError:
+                                    continue
+
+                            # If all parsing attempts failed
+                            if start_dt is None or end_dt is None:
+                                logger.warning(
+                                    f"Failed to parse dates for {rental_name}: start='{start_time_str}', end='{end_time_str}'"
+                                )
+                                logger.warning(
+                                    "All date format attempts failed, using fallback"
+                                )
+                                # Use current time as fallback
+                                start_dt = datetime.now()
+                                end_dt = datetime.now()
+                            else:
+                                logger.debug(
+                                    f"Parsed dates successfully: {start_dt} to {end_dt}"
+                                )
+
+                        except Exception as e:
                             logger.warning(
-                                "All date format attempts failed, using fallback"
+                                f"Exception during date parsing for {rental_name}: {e}"
                             )
                             # Use current time as fallback
                             start_dt = datetime.now()
                             end_dt = datetime.now()
-                        else:
-                            logger.debug(
-                                f"Parsed dates successfully: {start_dt} to {end_dt}"
-                            )
+
+                        # Parse price
+                        price = parse_price(price_str)
+
+                        # Build rental data
+                        rental = {
+                            "id": record_id,
+                            "name": rental_name,
+                            "start_time": start_dt,
+                            "end_time": end_dt,
+                            "studio": studio,
+                            "location": location,
+                            "status": status,
+                            "price": price,
+                            "record_url": (
+                                f"https://gibney.my.site.com{href}"
+                                if href.startswith("/")
+                                else href
+                            ),
+                        }
+
+                        page_rentals.append(rental)
+                        logger.debug(f"Scraped rental: {rental_name}")
 
                     except Exception as e:
-                        logger.warning(
-                            f"Exception during date parsing for {rental_name}: {e}"
-                        )
-                        # Use current time as fallback
-                        start_dt = datetime.now()
-                        end_dt = datetime.now()
+                        logger.warning(f"Skipping row {i+1} due to parsing error: {e}")
+                        continue
 
-                    # Parse price
-                    price = parse_price(price_str)
+                # Add this page's rentals to the total
+                all_rentals.extend(page_rentals)
+                logger.info(f"Scraped {len(page_rentals)} rentals from page {page_number}")
+                
+                # Check for pagination controls
+                logger.debug("Looking for pagination controls...")
+                
+                # Common pagination selectors to try
+                pagination_selectors = [
+                    'button:has-text("Next")',
+                    'a:has-text("Next")',
+                    'button[aria-label*="Next"]',
+                    'a[aria-label*="Next"]',
+                    '.slds-button:has-text("Next")',
+                    'lightning-button:has-text("Next")',
+                    'button.nextButton',
+                    'a.next-page',
+                    '[data-aura-class*="uiPager"] button:has-text("Next")',
+                    '.uiPager button:has-text("Next")',
+                    'button[title="Next Page"]',
+                    'a[title="Next Page"]',
+                ]
+                
+                next_button_found = False
+                for selector in pagination_selectors:
+                    try:
+                        # Check if next button exists and is not disabled
+                        next_button = await self.page.query_selector(selector)
+                        if next_button:
+                            # Check if button is disabled
+                            is_disabled = await next_button.get_attribute("disabled")
+                            aria_disabled = await next_button.get_attribute("aria-disabled")
+                            
+                            if is_disabled == "true" or aria_disabled == "true":
+                                logger.info(f"Next button found but disabled with selector: {selector}")
+                                break
+                            
+                            # Click the next button
+                            logger.info(f"Found and clicking next button with selector: {selector}")
+                            await next_button.click()
+                            next_button_found = True
+                            
+                            # Wait for the page to load new content
+                            logger.debug("Waiting for new page content to load...")
+                            try:
+                                # Wait for table to update (might need to adjust selector)
+                                await self.page.wait_for_load_state("networkidle", timeout=10000)
+                                await self.page.wait_for_selector("table.forceRecordLayout", timeout=10000)
+                                # Additional wait to ensure content is fully rendered
+                                await self.page.wait_for_timeout(2000)
+                            except Exception as e:
+                                logger.warning(f"Timeout waiting for new page content: {e}")
+                            
+                            page_number += 1
+                            break
+                            
+                    except Exception as e:
+                        logger.debug(f"Pagination selector {selector} failed: {e}")
+                        continue
+                
+                # If no next button found or it's disabled, we're done
+                if not next_button_found:
+                    logger.info("No more pages found - pagination complete")
+                    break
+                
+                # Safety check to prevent infinite loops
+                if page_number > max_pages:
+                    logger.warning(f"Reached maximum page limit ({max_pages}), stopping pagination")
+                    break
 
-                    # Build rental data
-                    rental = {
-                        "id": record_id,
-                        "name": rental_name,
-                        "start_time": start_dt,
-                        "end_time": end_dt,
-                        "studio": studio,
-                        "location": location,
-                        "status": status,
-                        "price": price,
-                        "record_url": (
-                            f"https://gibney.my.site.com{href}"
-                            if href.startswith("/")
-                            else href
-                        ),
-                    }
-
-                    rentals.append(rental)
-                    logger.debug(f"Scraped rental: {rental_name}")
-
-                except Exception as e:
-                    logger.warning(f"Skipping row {i+1} due to parsing error: {e}")
-                    continue
-
-            logger.info(f"Successfully scraped {len(rentals)} rentals")
-            return rentals
+            logger.info(f"Successfully scraped {len(all_rentals)} total rentals across {page_number} page(s)")
+            return all_rentals
 
         except Exception as e:
             logger.error(f"Failed to scrape rentals: {e}")
