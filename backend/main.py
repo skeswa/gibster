@@ -1,7 +1,7 @@
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID
 
 from fastapi import (
@@ -92,9 +92,9 @@ def run_sync_task_in_background(user_id: str, job_id: str):
     import asyncio
 
     from .database import SessionLocal
-    
+
     logger.info(f"Starting background sync task for user {user_id}, job {job_id}")
-    
+
     # Create a new database session for the background task
     db = SessionLocal()
     try:
@@ -103,37 +103,37 @@ def run_sync_task_in_background(user_id: str, job_id: str):
         if not user:
             logger.error(f"User {user_id} not found in background task")
             return
-            
+
         # Convert job_id to UUID
         job_uuid = UUID(job_id)
-        
+
         # Create new event loop for the thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
+
         # Run the async function
-        loop.run_until_complete(
-            sync_scrape_user_with_job_tracking(db, user, job_uuid)
-        )
-        
+        loop.run_until_complete(sync_scrape_user_with_job_tracking(db, user, job_uuid))
+
         logger.info(f"Background sync task completed for user {user_id}, job {job_id}")
-        
+
     except Exception as e:
-        logger.error(f"Background sync task failed for user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Background sync task failed for user {user_id}: {e}", exc_info=True
+        )
         # Try to update job status to failed
         try:
             job = db.query(SyncJob).filter(SyncJob.id == job_id).first()
             if job:
-                job.status = "failed"
-                job.error_message = f"Background task error: {str(e)}"
-                job.completed_at = datetime.utcnow()
-                job.last_updated_at = datetime.utcnow()
+                setattr(job, "status", "failed")
+                setattr(job, "error_message", f"Background task error: {str(e)}")
+                setattr(job, "completed_at", datetime.utcnow())
+                setattr(job, "last_updated_at", datetime.utcnow())
                 db.commit()
         except Exception as db_error:
             logger.error(f"Failed to update job status: {db_error}")
     finally:
         db.close()
-        if 'loop' in locals():
+        if "loop" in locals():
             loop.close()
 
 
@@ -268,7 +268,9 @@ async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint for Kubernetes probes"""
     try:
         # Test database connection
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+
+        db.execute(text("SELECT 1"))
         return {
             "status": "healthy",
             "service": "gibster-api",
@@ -471,8 +473,8 @@ async def get_user_bookings(
 @app.post("/api/v1/user/sync", response_model=SyncStartResponse)
 async def sync_bookings(
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user), 
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Manually trigger booking synchronization with progress tracking"""
     logger.info(f"Manual sync triggered by user: {current_user.email}")
@@ -501,17 +503,18 @@ async def sync_bookings(
         # Check if there's already a running sync job for this user
         # Also clean up any stale jobs before checking
         from .worker import check_and_mark_stale_jobs
+
         check_and_mark_stale_jobs(db)
-        
+
         existing_running_job = (
             db.query(SyncJob)
             .filter(
                 SyncJob.user_id == current_user.id,
-                SyncJob.status.in_(["pending", "running"])
+                SyncJob.status.in_(["pending", "running"]),
             )
             .first()
         )
-        
+
         if existing_running_job:
             logger.warning(f"Sync already in progress for user: {current_user.email}")
             return SyncStartResponse(
@@ -544,9 +547,7 @@ async def sync_bookings(
             # Use FastAPI's BackgroundTasks for development
             logger.debug(f"Running sync job {sync_job.id} in background")
             background_tasks.add_task(
-                run_sync_task_in_background,
-                str(current_user.id),
-                str(sync_job.id)
+                run_sync_task_in_background, str(current_user.id), str(sync_job.id)
             )
 
         return SyncStartResponse(
@@ -574,6 +575,7 @@ async def get_sync_status(
     try:
         # Check for stale jobs before returning status
         from .worker import check_and_mark_stale_jobs
+
         check_and_mark_stale_jobs(db)
         # Get the most recent sync job for this user
         latest_job = (
@@ -764,38 +766,40 @@ async def get_sync_job_logs(
     level: Optional[str] = None,
 ):
     """Get logs for a specific sync job"""
-    logger.debug(f"Retrieving logs for sync job {job_id} requested by {current_user.email}")
-    
+    logger.debug(
+        f"Retrieving logs for sync job {job_id} requested by {current_user.email}"
+    )
+
     try:
         # Verify the job belongs to the user
-        job = db.query(SyncJob).filter(
-            SyncJob.id == job_id,
-            SyncJob.user_id == current_user.id
-        ).first()
-        
+        job = (
+            db.query(SyncJob)
+            .filter(SyncJob.id == job_id, SyncJob.user_id == current_user.id)
+            .first()
+        )
+
         if not job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sync job not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Sync job not found"
             )
-        
+
         # Build query for logs
         query = db.query(SyncJobLog).filter(SyncJobLog.sync_job_id == job_id)
-        
+
         # Filter by level if specified
         if level:
             query = query.filter(SyncJobLog.level == level.upper())
-        
+
         # Order by timestamp
         query = query.order_by(SyncJobLog.timestamp.desc())
-        
+
         # Get total count
         total = query.count()
-        
+
         # Pagination
         offset = (page - 1) * limit
         logs = query.offset(offset).limit(limit).all()
-        
+
         return SyncJobLogsResponse(
             logs=[
                 SyncJobLogResponse(
@@ -804,22 +808,22 @@ async def get_sync_job_logs(
                     timestamp=log.timestamp,  # type: ignore
                     level=cast(str, log.level),
                     message=cast(str, log.message),
-                    details=log.details if log.details else {}
+                    details=cast(Dict[str, Any], log.details) if log.details else {},
                 )
                 for log in logs
             ],
             total=total,
             page=page,
-            limit=limit
+            limit=limit,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve sync job logs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve sync job logs"
+            detail="Failed to retrieve sync job logs",
         )
 
 
@@ -832,36 +836,38 @@ async def get_user_profile(current_user: User = Depends(get_current_user)):
 
 @app.post("/api/v1/admin/cleanup-sync-jobs")
 async def cleanup_sync_jobs(
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    days_to_keep: int = 30
+    days_to_keep: int = 30,
 ):
     """Manually trigger cleanup of old sync jobs (admin only)"""
     logger.info(f"Manual sync job cleanup requested by user: {current_user.email}")
-    
+
     try:
         from .worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
 
         # Check for stale jobs
         stale_count = check_and_mark_stale_jobs(db)
-        
+
         # Clean up old jobs
         cleaned_count = cleanup_old_sync_jobs(db, days_to_keep)
-        
-        logger.info(f"Cleanup completed: {stale_count} stale jobs marked, {cleaned_count} old jobs cleaned")
-        
+
+        logger.info(
+            f"Cleanup completed: {stale_count} stale jobs marked, {cleaned_count} old jobs cleaned"
+        )
+
         return {
             "message": "Cleanup completed successfully",
             "stale_jobs_marked": stale_count,
             "old_jobs_cleaned": cleaned_count,
-            "days_kept": days_to_keep
+            "days_kept": days_to_keep,
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to cleanup sync jobs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cleanup sync jobs"
+            detail="Failed to cleanup sync jobs",
         )
 
 

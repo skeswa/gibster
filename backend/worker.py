@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, cast
 from uuid import UUID
 
 from celery import Celery
@@ -14,7 +14,7 @@ from .scraper import scrape_user_bookings
 from .sync_logger import SyncJobLogger
 
 # Load environment variables from backend/.env
-env_path = os.path.join(os.path.dirname(__file__), '.env')
+env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=env_path)
 
 # Configure logging
@@ -39,7 +39,7 @@ else:
 USE_CELERY = os.getenv("USE_CELERY", "true").lower() == "true"
 
 logger.info(
-    f"Worker configuration: USE_CELERY={USE_CELERY}, REDIS_URL={REDIS_URL.split('@')[0]}..."
+    f"Worker configuration: USE_CELERY={USE_CELERY}, REDIS_URL={REDIS_URL.split('@')[0] if REDIS_URL else 'None'}..."
 )
 
 if USE_CELERY:
@@ -51,21 +51,21 @@ if USE_CELERY:
         logger.debug("Testing Redis connection...")
         celery_app.control.ping(timeout=1)
         logger.info("Celery with Redis initialized successfully")
-        
+
         # Configure Celery beat schedule
         from celery.schedules import crontab
-        
+
         celery_app.conf.beat_schedule = {
-            'cleanup-sync-jobs': {
-                'task': 'backend.worker.cleanup_sync_jobs_task',
-                'schedule': crontab(minute='*/15'),  # Run every 15 minutes
+            "cleanup-sync-jobs": {
+                "task": "backend.worker.cleanup_sync_jobs_task",
+                "schedule": crontab(minute="*/15"),  # Run every 15 minutes
             },
-            'scrape-all-users': {
-                'task': 'backend.worker.scrape_all_users',
-                'schedule': crontab(hour='*/4'),  # Run every 4 hours
+            "scrape-all-users": {
+                "task": "backend.worker.scrape_all_users",
+                "schedule": crontab(hour="*/4"),  # Run every 4 hours
             },
         }
-        celery_app.conf.timezone = 'UTC'
+        celery_app.conf.timezone = "UTC"
     except Exception as e:
         logger.warning(f"Redis not available: {e}. Running without background tasks.")
         USE_CELERY = False
@@ -102,6 +102,7 @@ async def sync_scrape_user_with_job_tracking(
         # Ensure database session is working
         try:
             from sqlalchemy import text
+
             db.execute(text("SELECT 1"))
         except Exception as db_error:
             logger.error(f"Database connection error: {db_error}")
@@ -124,8 +125,10 @@ async def sync_scrape_user_with_job_tracking(
             db.refresh(job)
 
         # Initialize sync logger
-        sync_logger = SyncJobLogger(db, job.id)
-        sync_logger.info(f"Sync job started for user {user.email}", user_email=user.email)
+        sync_logger = SyncJobLogger(db, cast(UUID, job.id))
+        sync_logger.info(
+            f"Sync job started for user {user.email}", user_email=user.email
+        )
 
         # Update job status with error handling
         logger.debug(f"Updating job {job.id} status to running")
@@ -158,12 +161,13 @@ async def sync_scrape_user_with_job_tracking(
         logger.debug("Starting scraper execution")
         sync_logger.info("Initiating scraper for Gibney bookings")
         scraper_start_time = datetime.utcnow()
-        
+
         # Pass sync_logger to scraper
         updated_bookings = await scrape_user_bookings(db, user, sync_logger)
-        
-        sync_logger.log_timing("Scraping process", scraper_start_time, 
-                              bookings_found=len(updated_bookings))
+
+        sync_logger.log_timing(
+            "Scraping process", scraper_start_time, bookings_found=len(updated_bookings)
+        )
 
         # Update progress with error handling
         try:
@@ -191,14 +195,16 @@ async def sync_scrape_user_with_job_tracking(
             setattr(job, "completed_at", datetime.utcnow())
             setattr(job, "last_updated_at", datetime.utcnow())
             db.commit()
-            
+
             # Note: The sync_logger.log_sync_summary is already called in scraper
             # with the correct counts, so we don't need to call it again here
             sync_logger.info("Sync completed successfully")
         except Exception as db_error:
             logger.error(f"Failed to mark job as completed: {db_error}")
             if sync_logger:
-                sync_logger.error("Failed to update job completion status", error=db_error)
+                sync_logger.error(
+                    "Failed to update job completion status", error=db_error
+                )
             db.rollback()
             # Don't raise here - sync was successful even if we can't update status
 
@@ -228,25 +234,37 @@ async def sync_scrape_user_with_job_tracking(
         # Determine error type for better user feedback
         error_message = str(e)
         if "Invalid credentials" in error_message or "Login failed" in error_message:
-            user_friendly_error = "Invalid Gibney credentials. Please update your login information."
+            user_friendly_error = (
+                "Invalid Gibney credentials. Please update your login information."
+            )
             if sync_logger:
                 sync_logger.error("Authentication failed - invalid credentials")
         elif "timeout" in error_message.lower():
-            user_friendly_error = "Connection timed out. Gibney website may be slow or unavailable."
+            user_friendly_error = (
+                "Connection timed out. Gibney website may be slow or unavailable."
+            )
             if sync_logger:
                 sync_logger.error("Connection timeout - Gibney site may be down")
-        elif "network" in error_message.lower() or "connection" in error_message.lower():
-            user_friendly_error = "Network error. Please check your internet connection."
+        elif (
+            "network" in error_message.lower() or "connection" in error_message.lower()
+        ):
+            user_friendly_error = (
+                "Network error. Please check your internet connection."
+            )
             if sync_logger:
                 sync_logger.error("Network connectivity issue")
         elif "database" in error_message.lower():
             user_friendly_error = "Database error. Please try again later."
             if sync_logger:
                 sync_logger.error("Database operation failed")
-        elif "browser" in error_message.lower() or "playwright" in error_message.lower():
+        elif (
+            "browser" in error_message.lower() or "playwright" in error_message.lower()
+        ):
             user_friendly_error = "Browser automation error. Please contact support."
             if sync_logger:
-                sync_logger.error("Browser automation failed - possible Playwright issue")
+                sync_logger.error(
+                    "Browser automation failed - possible Playwright issue"
+                )
         else:
             user_friendly_error = f"Sync error: {error_message}"
             if sync_logger:
@@ -260,7 +278,7 @@ async def sync_scrape_user_with_job_tracking(
                 setattr(job, "completed_at", datetime.utcnow())
                 setattr(job, "last_updated_at", datetime.utcnow())
                 db.commit()
-                
+
                 if sync_logger:
                     sync_logger.info("Job marked as failed in database")
             except Exception as db_error:
@@ -371,15 +389,15 @@ if USE_CELERY and celery_app:
         try:
             # Check for stale jobs
             stale_count = check_and_mark_stale_jobs(db)
-            
+
             # Clean up old jobs
             cleaned_count = cleanup_old_sync_jobs(db)
-            
+
             result = {
                 "stale_jobs_marked": stale_count,
-                "old_jobs_cleaned": cleaned_count
+                "old_jobs_cleaned": cleaned_count,
             }
-            
+
             logger.info(f"Celery task: cleanup_sync_jobs_task completed: {result}")
             return result
         except Exception as e:
@@ -409,8 +427,9 @@ if USE_CELERY and celery_app:
 
             # Run async version with asyncio
             import asyncio
+
             result = asyncio.run(sync_scrape_user_with_job_tracking(db, user, job_uuid))
-            
+
             logger.info(
                 f"Celery task: scrape_user_task completed for user {user.email}: {result}"
             )
@@ -484,38 +503,39 @@ else:
 def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
     """Check for stale jobs and mark them as failed"""
     logger.info(f"Checking for stale sync jobs (timeout: {timeout_minutes} minutes)")
-    
+
     try:
         cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
-        
+
         # Find jobs that are still running but haven't been updated recently
         stale_jobs = (
             db.query(SyncJob)
-            .filter(
-                SyncJob.status == "running",
-                SyncJob.last_updated_at < cutoff_time
-            )
+            .filter(SyncJob.status == "running", SyncJob.last_updated_at < cutoff_time)
             .all()
         )
-        
+
         if stale_jobs:
             logger.warning(f"Found {len(stale_jobs)} stale sync jobs")
-            
+
             for job in stale_jobs:
                 logger.warning(f"Marking job {job.id} as failed due to timeout")
                 setattr(job, "status", "failed")
-                setattr(job, "error_message", f"Sync timed out after {timeout_minutes} minutes")
+                setattr(
+                    job,
+                    "error_message",
+                    f"Sync timed out after {timeout_minutes} minutes",
+                )
                 setattr(job, "progress", "Sync failed due to timeout")
                 setattr(job, "completed_at", datetime.utcnow())
                 setattr(job, "last_updated_at", datetime.utcnow())
-            
+
             db.commit()
             logger.info(f"Marked {len(stale_jobs)} stale jobs as failed")
         else:
             logger.debug("No stale sync jobs found")
-            
+
         return len(stale_jobs)
-        
+
     except Exception as e:
         logger.error(f"Error checking for stale jobs: {e}")
         db.rollback()
@@ -525,32 +545,32 @@ def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
 def cleanup_old_sync_jobs(db: Session, days_to_keep: int = 30):
     """Remove old sync jobs to prevent database bloat"""
     logger.info(f"Cleaning up sync jobs older than {days_to_keep} days")
-    
+
     try:
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
-        
+
         # Delete old completed or failed jobs
         old_jobs = (
             db.query(SyncJob)
             .filter(
                 SyncJob.status.in_(["completed", "failed"]),
-                SyncJob.started_at < cutoff_date
+                SyncJob.started_at < cutoff_date,
             )
             .all()
         )
-        
+
         if old_jobs:
             job_count = len(old_jobs)
             for job in old_jobs:
                 db.delete(job)
-            
+
             db.commit()
             logger.info(f"Cleaned up {job_count} old sync jobs")
             return job_count
         else:
             logger.debug("No old sync jobs to clean up")
             return 0
-            
+
     except Exception as e:
         logger.error(f"Error cleaning up old sync jobs: {e}")
         db.rollback()

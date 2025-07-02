@@ -134,13 +134,15 @@ class GibneyScrapingError(Exception):
 
 
 class GibneyScraper:
-    def __init__(self, headless: bool = True, sync_logger: Optional["SyncJobLogger"] = None):
+    def __init__(
+        self, headless: bool = True, sync_logger: Optional["SyncJobLogger"] = None
+    ):
         self.headless = headless
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
         self.sync_logger = sync_logger
         logger.info(f"Initializing Gibney scraper (headless: {headless})")
-        
+
         if self.sync_logger:
             self.sync_logger.info("Initializing Gibney scraper", headless=headless)
 
@@ -173,11 +175,13 @@ class GibneyScraper:
 
             logger.info("Navigating to login page...")
             if self.sync_logger:
-                self.sync_logger.log_scraper_event("navigation", "Navigating to login page", url=LOGIN_URL)
-                
+                self.sync_logger.log_scraper_event(
+                    "navigation", "Navigating to login page", url=LOGIN_URL
+                )
+
             login_start_time = datetime.now()
             await self.page.goto(LOGIN_URL)
-            
+
             if self.sync_logger:
                 self.sync_logger.log_timing("Login page navigation", login_start_time)
 
@@ -185,7 +189,7 @@ class GibneyScraper:
             logger.debug("Filling login form")
             if self.sync_logger:
                 self.sync_logger.info("Filling login credentials")
-                
+
             # The Gibney login page uses type-based selectors, not name attributes
             await self.page.fill('input[type="text"]', email)
             await self.page.fill('input[type="password"]', password)
@@ -229,16 +233,20 @@ class GibneyScraper:
             logger.debug("Waiting for login redirect to home page...")
             if self.sync_logger:
                 self.sync_logger.info("Waiting for login redirect")
-                
+
             try:
-                await self.page.wait_for_url("https://gibney.my.site.com/s/", timeout=30000)
+                await self.page.wait_for_url(
+                    "https://gibney.my.site.com/s/", timeout=30000
+                )
                 logger.debug("Successfully redirected to home page")
                 if self.sync_logger:
                     self.sync_logger.info("Login successful - redirected to home page")
                     self.sync_logger.log_timing("Login process", login_start_time)
             except Exception as e:
                 if self.sync_logger:
-                    self.sync_logger.error("Login failed - timeout waiting for redirect", error=e)
+                    self.sync_logger.error(
+                        "Login failed - timeout waiting for redirect", error=e
+                    )
                 raise
 
             # Now navigate to My Rentals by clicking the link
@@ -329,14 +337,16 @@ class GibneyScraper:
             logger.info("Starting rental data scraping...")
             if self.sync_logger:
                 self.sync_logger.info("Starting rental data scraping")
-                
+
             scraping_start_time = datetime.now()
 
             # Navigate to rentals page if not already there
             if RENTALS_URL not in self.page.url:
                 logger.debug("Navigating to rentals page")
                 if self.sync_logger:
-                    self.sync_logger.log_scraper_event("navigation", "Navigating to rentals page", url=RENTALS_URL)
+                    self.sync_logger.log_scraper_event(
+                        "navigation", "Navigating to rentals page", url=RENTALS_URL
+                    )
                 await self.page.goto(RENTALS_URL)
 
             # Wait for page to load
@@ -361,7 +371,12 @@ class GibneyScraper:
                     all_tables = soup.select("table")
                     logger.debug(f"Found {len(all_tables)} tables on the page")
                     for j, table in enumerate(all_tables):
-                        table_classes = table.get("class") or []
+                        table_classes_raw: Any = table.get("class") or []
+                        table_classes: List[str] = (
+                            table_classes_raw
+                            if isinstance(table_classes_raw, list)
+                            else []
+                        )
                         logger.debug(f"  Table {j}: classes={table_classes}")
 
                 rows = soup.select("table.forceRecordLayout tbody tr")
@@ -541,7 +556,7 @@ class GibneyScraper:
                         f"Found {len(page_rentals)} bookings on page {page_number}",
                         page_number=page_number,
                         bookings_on_page=len(page_rentals),
-                        total_bookings_so_far=len(all_rentals)
+                        total_bookings_so_far=len(all_rentals),
                     )
 
                 # Check for pagination controls
@@ -639,7 +654,7 @@ async def scrape_user_bookings(
 ) -> List[Booking]:
     """Scrape bookings for a specific user and update the database"""
     logger.info(f"Starting booking scrape for user: {user.email}")
-    
+
     if sync_logger:
         sync_logger.info("Starting booking scrape", user_email=user.email)
 
@@ -662,7 +677,7 @@ async def scrape_user_bookings(
         logger.info(
             f"Scraped {len(rental_data)} rentals from Gibney for user: {user.email}"
         )
-        
+
         if sync_logger:
             sync_logger.info(f"Processing {len(rental_data)} bookings from Gibney")
 
@@ -685,10 +700,10 @@ async def scrape_user_bookings(
             logger.info(f"Removing old booking: {old_booking.name}")
             if sync_logger:
                 sync_logger.log_booking_processed(
-                    old_booking.id, 
-                    old_booking.name, 
+                    str(old_booking.id),
+                    str(old_booking.name),
                     "deleted",
-                    reason="No longer in Gibney data"
+                    reason="No longer in Gibney data",
                 )
             db.delete(old_booking)
 
@@ -710,20 +725,22 @@ async def scrape_user_bookings(
                         if key != "id" and getattr(existing_booking, key) != value:
                             changed = True
                             setattr(existing_booking, key, value)
-                    
+
                     setattr(existing_booking, "last_seen", datetime.utcnow())
                     updated_bookings.append(existing_booking)
-                    
+
                     if changed:
                         updated_count += 1
-                        logger.debug(f"Updated existing booking: {booking_data['name']}")
+                        logger.debug(
+                            f"Updated existing booking: {booking_data['name']}"
+                        )
                         if sync_logger:
                             sync_logger.log_booking_processed(
                                 booking_data["id"],
                                 booking_data["name"],
                                 "updated",
                                 studio=booking_data["studio"],
-                                start_time=booking_data["start_time"]
+                                start_time=booking_data["start_time"],
                             )
                     else:
                         unchanged_count += 1
@@ -753,7 +770,7 @@ async def scrape_user_bookings(
                             booking_data["name"],
                             "created",
                             studio=booking_data["studio"],
-                            start_time=booking_data["start_time"]
+                            start_time=booking_data["start_time"],
                         )
 
             except Exception as e:
@@ -766,16 +783,16 @@ async def scrape_user_bookings(
         db.commit()
 
         logger.info(f"Updated {len(updated_bookings)} bookings for user {user.email}")
-        
+
         if sync_logger:
             sync_logger.log_sync_summary(
                 total_bookings=len(rental_data),
                 created=created_count,
                 updated=updated_count,
                 unchanged=unchanged_count,
-                errors=0
+                errors=0,
             )
-        
+
         return updated_bookings
 
     except Exception as e:

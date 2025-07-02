@@ -84,7 +84,7 @@ class SyncStatusResponse(BaseModel):
 # Sync Job Log schemas
 class SyncJobLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     sync_job_id: UUID
     timestamp: datetime

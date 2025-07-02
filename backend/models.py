@@ -78,11 +78,15 @@ class SyncJob(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     triggered_manually = Column(Boolean, default=False)  # Track if sync was manual
-    last_updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Track last activity
+    last_updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )  # Track last activity
 
     # Relationships
     user = relationship("User", back_populates="sync_jobs")
-    logs = relationship("SyncJobLog", back_populates="sync_job", cascade="all, delete-orphan")
+    logs = relationship(
+        "SyncJobLog", back_populates="sync_job", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<SyncJob {self.id} - {self.status}>"
@@ -92,11 +96,15 @@ class SyncJobLog(Base):
     __tablename__ = "sync_job_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    sync_job_id = Column(UUID(as_uuid=True), ForeignKey("sync_jobs.id"), nullable=False, index=True)
+    sync_job_id = Column(
+        UUID(as_uuid=True), ForeignKey("sync_jobs.id"), nullable=False, index=True
+    )
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     level = Column(String, nullable=False)  # 'INFO', 'WARNING', 'ERROR', 'DEBUG'
     message = Column(Text, nullable=False)
-    details = Column(JSON, nullable=True)  # Structured data like response times, URLs, etc.
+    details = Column(
+        JSON, nullable=True
+    )  # Structured data like response times, URLs, etc.
 
     # Relationship
     sync_job = relationship("SyncJob", back_populates="logs")

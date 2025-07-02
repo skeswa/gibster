@@ -135,20 +135,26 @@ If the quick-add buttons don't work, copy your calendar URL and:
 
 ### Running Tests
 
-The test runner now supports both backend (Python) and frontend (JavaScript/TypeScript) tests:
+The test runner supports both backend (Python) and frontend (JavaScript/TypeScript) tests with **type checking enabled by default**:
 
 ```bash
 # Activate virtual environment first
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Run ALL tests (backend + frontend) with coverage
+# Run ALL tests (backend + frontend) with type checking and coverage
 python run_tests.py --coverage
 
-# Run only backend tests
+# Run only backend tests with type checking
 python run_tests.py --backend-only --coverage
 
-# Run only frontend tests  
+# Run only frontend tests with type checking
 python run_tests.py --frontend-only --coverage
+
+# Skip type checking (tests only)
+python run_tests.py --skip-type-check
+
+# Run only type checking (no tests)
+python run_tests.py --type-check-only
 
 # Run specific backend test types
 python run_tests.py --backend-only --type unit
@@ -157,11 +163,18 @@ python run_tests.py --backend-only --type integration
 # Run with verbose output
 python run_tests.py --verbose
 
-# Using pytest directly (backend only)
+# Using pytest directly (backend only - no type checking)
 pytest -v --cov=backend backend
 ```
 
+**Type Checking:**
+- **Backend**: Uses `mypy` for Python type checking
+- **Frontend**: Uses TypeScript compiler (`tsc`) for type checking
+- Type checking runs automatically before tests (unless skipped)
+- Type errors will prevent tests from running
+
 The test runner automatically detects and runs:
+- **Type checking**: mypy (Python) and tsc (TypeScript)
 - **Backend tests**: Python tests using pytest
 - **Frontend tests**: React component tests using Jest + Testing Library
 

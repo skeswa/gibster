@@ -61,7 +61,7 @@ Use the format-check script in your CI pipeline to ensure all code is properly f
 - **`main.py`** - Original scraping script that generates iCal files from Gibney rentals
 - **`run_server.py`** - Starts the FastAPI development server
 - **`run_dev.py`** - Development runner with environment checks
-- **`run_tests.py`** - Unified test runner for both backend (Python/pytest) and frontend (JavaScript/Jest) tests with various options (unit, integration, coverage)
+- **`run_tests.py`** - Unified test runner for both backend (Python/pytest) and frontend (JavaScript/Jest) tests with type checking (mypy/tsc) and various options (unit, integration, coverage)
 - **`run_worker.py`** - Celery worker for background tasks
 
 ### Setup Scripts
@@ -74,18 +74,24 @@ Use the format-check script in your CI pipeline to ensure all code is properly f
 
 ### Test Runner (`run_tests.py`)
 
-The unified test runner supports both backend and frontend testing:
+The unified test runner supports both backend and frontend testing with **type checking enabled by default**:
 
 #### Available Options
 ```bash
-# Run all tests (backend + frontend)
+# Run all tests (backend + frontend) with type checking
 python3 run_tests.py
 
-# Backend only
+# Backend only with type checking
 python3 run_tests.py --backend-only
 
-# Frontend only  
+# Frontend only with type checking
 python3 run_tests.py --frontend-only
+
+# Skip type checking (tests only)
+python3 run_tests.py --skip-type-check
+
+# Type checking only (no tests)
+python3 run_tests.py --type-check-only
 
 # With coverage reports
 python3 run_tests.py --coverage
@@ -97,6 +103,12 @@ python3 run_tests.py --verbose
 python3 run_tests.py --backend-only --type unit
 python3 run_tests.py --backend-only --type integration
 ```
+
+#### Type Checking
+- **Backend**: Uses `mypy` for Python type checking
+- **Frontend**: Uses TypeScript compiler (`tsc`) for type checking
+- Type checking runs automatically before tests (unless `--skip-type-check` is used)
+- Type errors will prevent tests from running
 
 #### Test Detection
 - **Backend**: Automatically runs pytest for Python tests

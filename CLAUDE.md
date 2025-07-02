@@ -23,14 +23,17 @@ source venv/bin/activate         # Activate virtual environment
 python scripts/dev_setup.py      # One-time automated setup
 python scripts/run_server.py     # Start development server (port 8000)
 
-# Testing
-python scripts/run_tests.py --coverage   # Run all tests with coverage
-python scripts/run_tests.py --backend-only --type unit  # Unit tests only
-pytest -v backend/tests/test_some_file.py::test_function  # Run specific test
+# Testing (type checking runs by default)
+python scripts/run_tests.py --coverage   # Run type checking + all tests with coverage
+python scripts/run_tests.py --backend-only --type unit  # Type check + unit tests only
+python scripts/run_tests.py --skip-type-check  # Skip type checking, tests only
+python scripts/run_tests.py --type-check-only  # Type checking only, no tests
+pytest -v backend/tests/test_some_file.py::test_function  # Run specific test (no type check)
 
 # Code quality
 black backend/                   # Format Python code
 isort backend/                   # Sort imports
+mypy backend --ignore-missing-imports  # Run type checking manually
 
 # Database
 cd backend && alembic upgrade head       # Run migrations
@@ -136,3 +139,10 @@ gibster/
    - Bad: `../gibster_dev.db` or relative paths that might create files in wrong locations
 
 3. **Database Commands**: Always execute database-related commands (migrations, sqlite3 commands) from within the `backend/` directory to ensure the correct database file is used.
+
+4. **Type Checking**: The test runner (`scripts/run_tests.py`) runs type checking by default before tests:
+   - Backend uses `mypy` for Python type checking
+   - Frontend uses `tsc` for TypeScript type checking
+   - Type errors will prevent tests from running
+   - Use `--skip-type-check` to bypass type checking when needed
+   - Run `mypy backend --ignore-missing-imports` to check types manually

@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from .logging_config import get_logger
 
 # Load environment variables from backend/.env
-env_path = os.path.join(os.path.dirname(__file__), '.env')
+env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=env_path)
 
 logger = get_logger("auth")
@@ -21,18 +21,23 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Encryption key for Gibney credentials
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+ENCRYPTION_KEY: Union[str, bytes, None] = os.getenv("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:
     ENCRYPTION_KEY = Fernet.generate_key()
     logger.warning(
         "Generated new encryption key - set ENCRYPTION_KEY in .env file for production"
     )
+    # ENCRYPTION_KEY is guaranteed to be bytes here after generate_key()
     logger.debug(f"Generated encryption key: {ENCRYPTION_KEY.decode()}")
+else:
+    # Convert string to bytes if loaded from env
+    ENCRYPTION_KEY = (
+        ENCRYPTION_KEY.encode() if isinstance(ENCRYPTION_KEY, str) else ENCRYPTION_KEY
+    )
 
 try:
-    fernet = Fernet(
-        ENCRYPTION_KEY if isinstance(ENCRYPTION_KEY, bytes) else ENCRYPTION_KEY.encode()
-    )
+    # ENCRYPTION_KEY is guaranteed to be bytes at this point
+    fernet = Fernet(ENCRYPTION_KEY)
     logger.info("Encryption service initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize encryption service: {e}")
