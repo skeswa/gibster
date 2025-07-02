@@ -4,6 +4,7 @@
   "description": "Gibster frontend - Next.js app for managing Gibney bookings",
   "private": true,
   "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-scroll-area": "^1.2.9",

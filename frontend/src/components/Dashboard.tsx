@@ -22,6 +22,11 @@ import {
 } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   Calendar,
   RefreshCw,
   Settings,
@@ -33,6 +38,7 @@ import {
   Loader2,
   AlertCircle,
   FileText,
+  ChevronDown,
 } from 'lucide-react';
 import SyncJobLogs from '@/components/SyncJobLogs';
 
@@ -97,6 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     useState<NodeJS.Timeout | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [calendarInfoOpen, setCalendarInfoOpen] = useState(false);
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -334,6 +341,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchSyncHistory();
   }, []);
 
+  // Auto-expand calendar info when sync history changes
+  useEffect(() => {
+    // If there's no sync history or very few items, collapse the calendar info
+    // Otherwise, expand it
+    setCalendarInfoOpen(syncHistory.length > 2);
+  }, [syncHistory]);
+
   return (
     <div className='space-y-6'>
       <div className='grid gap-6 md:grid-cols-2'>
@@ -420,6 +434,58 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </Button>
                   </div>
                 </div>
+
+                {/* Additional information about calendar sync - Collapsible */}
+                <Collapsible
+                  open={calendarInfoOpen}
+                  onOpenChange={setCalendarInfoOpen}
+                >
+                  <div className='mt-6 border-t pt-4'>
+                    <CollapsibleTrigger className='flex w-full items-center justify-between text-sm font-medium hover:text-primary transition-colors'>
+                      <span>More information</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform duration-200 ${calendarInfoOpen ? 'rotate-180' : ''}`}
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className='mt-4 space-y-4'>
+                      <div>
+                        <h4 className='text-sm font-medium mb-3'>
+                          How it works
+                        </h4>
+                        <div className='space-y-2 text-sm text-muted-foreground'>
+                          <p className='flex items-start gap-2'>
+                            <span className='text-primary'>•</span>
+                            <span>
+                              Your calendar automatically syncs with Gibney
+                              every 2 hours
+                            </span>
+                          </p>
+                          <p className='flex items-start gap-2'>
+                            <span className='text-primary'>•</span>
+                            <span>
+                              New bookings, cancellations, and changes appear
+                              automatically
+                            </span>
+                          </p>
+                          <p className='flex items-start gap-2'>
+                            <span className='text-primary'>•</span>
+                            <span>
+                              Most calendar apps check for updates every 2-24
+                              hours
+                            </span>
+                          </p>
+                          <p className='flex items-start gap-2'>
+                            <span className='text-primary'>•</span>
+                            <span>
+                              You can manually refresh your calendar app to see
+                              updates sooner
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
               </div>
             ) : (
               <div className='flex items-center justify-center py-8'>
@@ -431,8 +497,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               <Alert className='mt-4'>
                 <AlertCircle className='h-4 w-4' />
                 <AlertDescription>
-                  Your calendar will automatically update when bookings change.
-                  Most apps refresh every 2-24 hours.
+                  Pro tip: For instant updates, use the "Sync Now" button in the
+                  settings card to manually refresh your bookings.
                 </AlertDescription>
               </Alert>
             )}
