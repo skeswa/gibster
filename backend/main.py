@@ -561,8 +561,26 @@ async def sync_bookings(
         )
 
     except Exception as e:
-        logger.error(f"Failed to start sync for {current_user.email}: {e}")
+        logger.error(f"Failed to start sync for {current_user.email}: {e}", exc_info=True)
         db.rollback()
+        
+        # Try to create a failed job record for visibility
+        try:
+            failed_job = SyncJob(
+                user_id=current_user.id,
+                status="failed",
+                progress="Failed to start sync",
+                error_message=f"Failed to start sync: {str(e)}",
+                triggered_manually=True,
+                completed_at=datetime.utcnow(),
+            )
+            db.add(failed_job)
+            db.commit()
+            logger.info(f"Created failed job record {failed_job.id} for error visibility")
+        except:
+            logger.error("Failed to create error job record")
+            db.rollback()
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start sync: {str(e)}",

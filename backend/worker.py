@@ -55,17 +55,19 @@ if USE_CELERY:
         # Configure Celery beat schedule
         from celery.schedules import crontab
 
-        celery_app.conf.beat_schedule = {
-            "cleanup-sync-jobs": {
-                "task": "backend.worker.cleanup_sync_jobs_task",
-                "schedule": crontab(minute="*/15"),  # Run every 15 minutes
+        celery_app.conf.update(
+            beat_schedule={
+                "cleanup-sync-jobs": {
+                    "task": "backend.worker.cleanup_sync_jobs_task",
+                    "schedule": crontab(minute="*/15"),  # Run every 15 minutes
+                },
+                "scrape-all-users": {
+                    "task": "backend.worker.scrape_all_users",
+                    "schedule": crontab(hour="*/4"),  # Run every 4 hours
+                },
             },
-            "scrape-all-users": {
-                "task": "backend.worker.scrape_all_users",
-                "schedule": crontab(hour="*/4"),  # Run every 4 hours
-            },
-        }
-        celery_app.conf.timezone = "UTC"
+            timezone="UTC",
+        )
     except Exception as e:
         logger.warning(f"Redis not available: {e}. Running without background tasks.")
         USE_CELERY = False
@@ -107,25 +109,51 @@ async def sync_scrape_user_with_job_tracking(
         except Exception as db_error:
             logger.error(f"Database connection error: {db_error}")
             raise Exception("Database connection failed")
-        # Create or get existing job
-        if job_id:
-            logger.debug(f"Looking for existing job: {job_id}")
-            job = db.query(SyncJob).filter(SyncJob.id == job_id).first()
 
-        if not job:
-            logger.debug("Creating new sync job")
-            job = SyncJob(
-                user_id=user.id,
-                status="running",
-                progress="Starting sync...",
-                triggered_manually=True,
+        # Create or get existing job with proper error handling
+        try:
+            if job_id:
+                logger.debug(f"Looking for existing job: {job_id}")
+                job = db.query(SyncJob).filter(SyncJob.id == job_id).first()
+
+            if not job:
+                logger.debug("Creating new sync job")
+                job = SyncJob(
+                    user_id=user.id,
+                    status="running",
+                    progress="Starting sync...",
+                    triggered_manually=True,
+                )
+                db.add(job)
+                db.commit()
+                db.refresh(job)
+                logger.info(f"Created sync job {job.id} for user {user.email}")
+
+            # Initialize sync logger immediately after job creation
+            sync_logger = SyncJobLogger(db, cast(UUID, job.id))
+
+        except Exception as job_error:
+            logger.error(
+                f"Failed to create/retrieve sync job: {job_error}", exc_info=True
             )
-            db.add(job)
-            db.commit()
-            db.refresh(job)
-
-        # Initialize sync logger
-        sync_logger = SyncJobLogger(db, cast(UUID, job.id))
+            # Try to create a failed job record for visibility
+            try:
+                if not job:
+                    job = SyncJob(
+                        user_id=user.id,
+                        status="failed",
+                        progress="Failed to initialize sync",
+                        error_message="Failed to create sync job. Please try again.",
+                        triggered_manually=True,
+                        completed_at=datetime.utcnow(),
+                    )
+                    db.add(job)
+                    db.commit()
+                    db.refresh(job)
+            except:
+                logger.error("Failed to create error job record")
+                db.rollback()
+            raise Exception(f"Failed to initialize sync job: {str(job_error)}")
         sync_logger.info(
             f"Sync job started for user {user.email}", user_email=user.email
         )
@@ -227,12 +255,26 @@ async def sync_scrape_user_with_job_tracking(
     except Exception as e:
         logger.error(f"Failed to scrape bookings for {user.email}: {e}", exc_info=True)
 
-        # Log error to sync job logs
+        # Log error to sync job logs - create logger if needed
+        if not sync_logger and job:
+            try:
+                sync_logger = SyncJobLogger(db, cast(UUID, job.id))
+            except:
+                logger.error("Failed to create sync logger for error handling")
+
         if sync_logger:
             sync_logger.error(f"Sync failed: {str(e)}", error=e)
+        else:
+            logger.warning("No sync logger available to record error details")
 
         # Determine error type for better user feedback
         error_message = str(e)
+        # Handle cryptography errors which may have empty string representation
+        if not error_message and type(e).__name__ == "InvalidToken":
+            error_message = "Invalid encryption token"
+        elif not error_message:
+            error_message = type(e).__name__
+
         if "Invalid credentials" in error_message or "Login failed" in error_message:
             user_friendly_error = (
                 "Invalid Gibney credentials. Please update your login information."
@@ -265,6 +307,15 @@ async def sync_scrape_user_with_job_tracking(
                 sync_logger.error(
                     "Browser automation failed - possible Playwright issue"
                 )
+        elif (
+            "invalidtoken" in error_message.lower()
+            or "decrypt" in error_message.lower()
+        ):
+            user_friendly_error = "Failed to decrypt Gibney credentials. Please update your login information."
+            if sync_logger:
+                sync_logger.error(
+                    "Credential decryption failed - encryption key mismatch"
+                )
         else:
             user_friendly_error = f"Sync error: {error_message}"
             if sync_logger:
@@ -281,9 +332,28 @@ async def sync_scrape_user_with_job_tracking(
 
                 if sync_logger:
                     sync_logger.info("Job marked as failed in database")
+                else:
+                    logger.info(
+                        f"Job {job.id} marked as failed (no sync logger available)"
+                    )
             except Exception as db_error:
                 logger.error(f"Failed to update job status in database: {db_error}")
                 db.rollback()
+                # Try one more time with a fresh transaction
+                try:
+                    db.begin()
+                    job_update = db.query(SyncJob).filter(SyncJob.id == job.id).first()
+                    if job_update:
+                        job_update.status = "failed"
+                        job_update.error_message = user_friendly_error
+                        job_update.completed_at = datetime.utcnow()
+                        db.commit()
+                        logger.info("Successfully updated job status on retry")
+                except:
+                    logger.error("Failed to update job status even on retry")
+                    db.rollback()
+        else:
+            logger.error("No job record available to update with error status")
 
         return {
             "job_id": job.id if job else None,

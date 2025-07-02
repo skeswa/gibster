@@ -134,17 +134,17 @@ const SyncJobLogs: React.FC<SyncJobLogsProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className='max-w-4xl max-h-[80vh]'>
-        <DialogHeader>
+      <DialogContent className='max-w-4xl max-h-[80vh] flex flex-col overflow-hidden'>
+        <DialogHeader className='flex-shrink-0'>
           <DialogTitle>Sync Job Logs</DialogTitle>
           <DialogDescription>
             Detailed logs for sync job {jobId.slice(0, 8)}...
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4'>
+        <div className='flex-1 flex flex-col space-y-4 min-h-0'>
           {/* Filters */}
-          <div className='flex items-center justify-between'>
+          <div className='flex items-center justify-between flex-shrink-0'>
             <Select value={levelFilter} onValueChange={setLevelFilter}>
               <SelectTrigger className='w-[180px]'>
                 <SelectValue placeholder='Filter by level' />
@@ -164,69 +164,71 @@ const SyncJobLogs: React.FC<SyncJobLogsProps> = ({
           </div>
 
           {/* Logs */}
-          <ScrollArea className='h-[400px] w-full rounded-md border p-4'>
-            {loading && (
-              <div className='flex items-center justify-center py-8'>
-                <Loader2 className='h-6 w-6 animate-spin' />
-              </div>
-            )}
+          <ScrollArea className='flex-1 w-full rounded-md border'>
+            <div className='p-4'>
+              {loading && (
+                <div className='flex items-center justify-center py-8'>
+                  <Loader2 className='h-6 w-6 animate-spin' />
+                </div>
+              )}
 
-            {error && (
-              <div className='flex items-center justify-center py-8 text-red-500'>
-                <AlertCircle className='h-5 w-5 mr-2' />
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className='flex items-center justify-center py-8 text-red-500'>
+                  <AlertCircle className='h-5 w-5 mr-2' />
+                  {error}
+                </div>
+              )}
 
-            {!loading && !error && logs.length === 0 && (
-              <div className='flex items-center justify-center py-8 text-muted-foreground'>
-                No logs found
-              </div>
-            )}
+              {!loading && !error && logs.length === 0 && (
+                <div className='flex items-center justify-center py-8 text-muted-foreground'>
+                  No logs found
+                </div>
+              )}
 
-            {!loading && !error && logs.length > 0 && (
-              <div className='space-y-3'>
-                {logs.map(log => (
-                  <div
-                    key={log.id}
-                    className='flex flex-col space-y-2 border-b pb-3 last:border-0'
-                  >
-                    <div className='flex items-start justify-between'>
-                      <div className='flex items-center space-x-2'>
-                        {getLogIcon(log.level)}
-                        <Badge
-                          variant={getLevelVariant(log.level)}
-                          className='text-xs'
-                        >
-                          {log.level}
-                        </Badge>
-                        <span className='text-xs text-muted-foreground'>
-                          {formatTimestamp(log.timestamp)}
-                        </span>
+              {!loading && !error && logs.length > 0 && (
+                <div className='space-y-3'>
+                  {logs.map(log => (
+                    <div
+                      key={log.id}
+                      className='flex flex-col space-y-2 border-b pb-3 last:border-0'
+                    >
+                      <div className='flex items-start justify-between'>
+                        <div className='flex items-center space-x-2'>
+                          {getLogIcon(log.level)}
+                          <Badge
+                            variant={getLevelVariant(log.level)}
+                            className='text-xs'
+                          >
+                            {log.level}
+                          </Badge>
+                          <span className='text-xs text-muted-foreground'>
+                            {formatTimestamp(log.timestamp)}
+                          </span>
+                        </div>
                       </div>
+
+                      <div className='text-sm'>{log.message}</div>
+
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <details className='text-xs'>
+                          <summary className='cursor-pointer text-muted-foreground hover:text-foreground'>
+                            View details
+                          </summary>
+                          <pre className='mt-2 p-2 bg-muted rounded overflow-x-auto whitespace-pre-wrap break-words max-w-full'>
+                            {JSON.stringify(log.details, null, 2)}
+                          </pre>
+                        </details>
+                      )}
                     </div>
-
-                    <div className='text-sm'>{log.message}</div>
-
-                    {log.details && Object.keys(log.details).length > 0 && (
-                      <details className='text-xs'>
-                        <summary className='cursor-pointer text-muted-foreground hover:text-foreground'>
-                          View details
-                        </summary>
-                        <pre className='mt-2 p-2 bg-muted rounded overflow-x-auto'>
-                          {JSON.stringify(log.details, null, 2)}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </ScrollArea>
 
           {/* Pagination */}
           {totalLogs > limit && (
-            <div className='flex items-center justify-between'>
+            <div className='flex items-center justify-between flex-shrink-0 pt-2 border-t'>
               <Button
                 variant='outline'
                 size='sm'

@@ -4,8 +4,77 @@ Simple test runner for Gibster - supports both backend and frontend tests with t
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
+
+
+def check_virtual_env():
+    """Check if virtual environment is activated and required tools are available"""
+    # Check multiple indicators of venv activation
+    in_venv = (
+        hasattr(sys, 'prefix') and sys.prefix != sys.base_prefix or
+        os.environ.get('VIRTUAL_ENV') is not None or
+        sys.executable.startswith(os.path.join(os.getcwd(), 'venv')) or
+        sys.executable.startswith(os.path.join(os.getcwd(), '.venv'))
+    )
+    
+    # Also check if we're running the script with the venv Python but tools aren't in PATH
+    venv_python_but_no_activation = (
+        (sys.executable.startswith(os.path.join(os.getcwd(), 'venv')) or
+         sys.executable.startswith(os.path.join(os.getcwd(), '.venv'))) and
+        os.environ.get('VIRTUAL_ENV') is None
+    )
+    
+    if venv_python_but_no_activation:
+        print("⚠️  Warning: Running with venv Python but environment not fully activated!")
+        print("   PATH may not include venv binaries.")
+        print("\nTo properly activate the virtual environment, run:")
+        print("  source venv/bin/activate")
+        print("\nAttempting to continue anyway...\n")
+    elif not in_venv:
+        print("⚠️  Warning: Virtual environment is not activated!")
+        print("\nTo activate the virtual environment, run:")
+        print("  source venv/bin/activate")
+        print("\nAttempting to continue anyway...\n")
+    
+    # Check for required tools - but also check venv paths
+    required_tools = {
+        'mypy': 'Type checking',
+        'pytest': 'Running tests',
+        'npm': 'Frontend tests'
+    }
+    
+    missing_tools = []
+    for tool, purpose in required_tools.items():
+        # Check system PATH
+        found = shutil.which(tool)
+        
+        # Also check venv paths for Python tools
+        if not found and tool in ['mypy', 'pytest']:
+            venv_paths = [
+                os.path.join(os.getcwd(), "venv", "bin", tool),
+                os.path.join(os.getcwd(), ".venv", "bin", tool)
+            ]
+            for venv_path in venv_paths:
+                if os.path.exists(venv_path):
+                    found = True
+                    break
+        
+        if not found:
+            missing_tools.append((tool, purpose))
+    
+    if missing_tools:
+        print("❌ Missing required tools:")
+        for tool, purpose in missing_tools:
+            print(f"  - {tool} (needed for: {purpose})")
+        
+        if not in_venv:
+            print("\n💡 Tip: Activating the virtual environment should resolve Python tool issues.")
+            print("   Run: source venv/bin/activate")
+        return False
+    
+    return True
 
 
 def run_command(cmd, cwd=None):
@@ -13,15 +82,34 @@ def run_command(cmd, cwd=None):
     print(f"Running: {' '.join(cmd)}")
     if cwd:
         print(f"Working directory: {cwd}")
-    result = subprocess.run(cmd, capture_output=False, cwd=cwd)
-    return result.returncode
+    
+    try:
+        result = subprocess.run(cmd, capture_output=False, cwd=cwd)
+        return result.returncode
+    except FileNotFoundError as e:
+        print(f"\n❌ Error: Command '{cmd[0]}' not found!")
+        if cmd[0] in ['mypy', 'pytest']:
+            print("\n💡 This is likely because the virtual environment is not activated.")
+            print("   Run: source venv/bin/activate")
+        return 1
 
 
 def run_backend_type_check(args):
     """Run mypy type checking on backend code"""
     print("\n🔍 Running backend type checking...")
     
-    cmd = ["mypy", "backend", "--ignore-missing-imports"]
+    # Try to find mypy in venv first, then fall back to system
+    venv_mypy = os.path.join(os.getcwd(), "venv", "bin", "mypy")
+    venv_mypy_alt = os.path.join(os.getcwd(), ".venv", "bin", "mypy")
+    
+    if os.path.exists(venv_mypy):
+        mypy_cmd = venv_mypy
+    elif os.path.exists(venv_mypy_alt):
+        mypy_cmd = venv_mypy_alt
+    else:
+        mypy_cmd = "mypy"
+    
+    cmd = [mypy_cmd, "backend", "--ignore-missing-imports"]
     
     if args.verbose:
         cmd.append("--verbose")
@@ -112,6 +200,9 @@ def run_frontend_tests(args):
 
 
 def main():
+    # Check environment before parsing args
+    env_ok = check_virtual_env()
+    
     parser = argparse.ArgumentParser(description="Run Gibster tests with optional type checking")
     parser.add_argument(
         "--type",

@@ -582,30 +582,21 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </p>
                 )}
                 {syncStatus.job.error_message && (
-                  <Alert variant='destructive'>
-                    <AlertCircle className='h-4 w-4' />
-                    <AlertDescription>
-                      {syncStatus.job.error_message}
+                  <Alert className='bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900'>
+                    <AlertCircle className='h-4 w-4 text-red-600 dark:text-red-400' />
+                    <AlertDescription className='text-red-900 dark:text-red-200'>
+                      {syncStatus.job.error_message ||
+                        'An unknown error occurred. Please check the logs for details.'}
                     </AlertDescription>
                   </Alert>
                 )}
               </div>
             )}
 
-            {syncMessage && (
-              <Alert
-                variant={
-                  isPolling
-                    ? 'default'
-                    : syncMessage.includes('failed')
-                      ? 'destructive'
-                      : 'default'
-                }
-              >
+            {syncMessage && !syncMessage.includes('failed') && (
+              <Alert>
                 {isPolling ? (
                   <Loader2 className='h-4 w-4 animate-spin' />
-                ) : syncMessage.includes('failed') ? (
-                  <AlertCircle className='h-4 w-4' />
                 ) : (
                   <CheckCircle2 className='h-4 w-4' />
                 )}

@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from bs4 import BeautifulSoup, Tag
@@ -19,6 +19,14 @@ logger = get_logger("scraper")
 
 LOGIN_URL = "https://gibney.my.site.com/s/login"
 RENTALS_URL = "https://gibney.my.site.com/s/booking-item"
+
+# Timeout constants (in milliseconds)
+DEFAULT_TIMEOUT = 30000  # 30 seconds
+LOGIN_REDIRECT_TIMEOUT = 60000  # 60 seconds for login redirect
+PAGE_LOAD_TIMEOUT = 45000  # 45 seconds for page loads
+NAVIGATION_TIMEOUT = 60000  # 60 seconds for navigation
+ELEMENT_TIMEOUT = 10000  # 10 seconds for element operations
+NETWORK_IDLE_TIMEOUT = 10000  # 10 seconds for network idle
 
 
 def parse_booking_row(row_html: str) -> Dict[str, Any]:
@@ -62,8 +70,8 @@ def parse_booking_row(row_html: str) -> Dict[str, Any]:
                 f"Failed to parse dates '{start_time_str}' and '{end_time_str}': {e}"
             )
             # If parsing fails, use a default format
-            start_time = datetime.now()
-            end_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
+            end_time = datetime.now(timezone.utc)
 
         studio = cast(Tag, cells[3]).get_text(strip=True)
         location = cast(Tag, cells[4]).get_text(strip=True)
@@ -170,8 +178,19 @@ class GibneyScraper:
 
         try:
             playwright = await async_playwright().start()
-            self.browser = await playwright.chromium.launch(headless=self.headless)
+            # Launch browser with better configuration for slow sites
+            self.browser = await playwright.chromium.launch(
+                headless=self.headless,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process'
+                ]
+            )
+            # Create page with default timeout
             self.page = await self.browser.new_page()
+            self.page.set_default_timeout(DEFAULT_TIMEOUT)
+            self.page.set_default_navigation_timeout(NAVIGATION_TIMEOUT)
 
             logger.info("Navigating to login page...")
             if self.sync_logger:
@@ -179,8 +198,16 @@ class GibneyScraper:
                     "navigation", "Navigating to login page", url=LOGIN_URL
                 )
 
-            login_start_time = datetime.now()
-            await self.page.goto(LOGIN_URL)
+            login_start_time = datetime.now(timezone.utc)
+            
+            # Navigate to login page with extended timeout
+            try:
+                await self.page.goto(LOGIN_URL, timeout=PAGE_LOAD_TIMEOUT, wait_until="domcontentloaded")
+            except Exception as e:
+                logger.error(f"Failed to load login page: {e}")
+                if self.sync_logger:
+                    self.sync_logger.error("Failed to navigate to login page", error=e)
+                raise GibneyScrapingError(f"Unable to reach Gibney website. The site may be down or experiencing issues.")
 
             if self.sync_logger:
                 self.sync_logger.log_timing("Login page navigation", login_start_time)
@@ -213,7 +240,7 @@ class GibneyScraper:
             for selector in button_selectors:
                 try:
                     logger.debug(f"Trying button selector: {selector}")
-                    await self.page.click(selector, timeout=5000)
+                    await self.page.click(selector, timeout=ELEMENT_TIMEOUT)
                     button_clicked = True
                     logger.debug(
                         f"Successfully clicked button with selector: {selector}"
@@ -235,19 +262,54 @@ class GibneyScraper:
                 self.sync_logger.info("Waiting for login redirect")
 
             try:
-                await self.page.wait_for_url(
-                    "https://gibney.my.site.com/s/", timeout=30000
-                )
-                logger.debug("Successfully redirected to home page")
-                if self.sync_logger:
-                    self.sync_logger.info("Login successful - redirected to home page")
-                    self.sync_logger.log_timing("Login process", login_start_time)
+                # Wait for redirect with multiple strategies
+                redirect_success = False
+                
+                # Strategy 1: Wait for URL change
+                try:
+                    await self.page.wait_for_url(
+                        "https://gibney.my.site.com/s/", timeout=LOGIN_REDIRECT_TIMEOUT
+                    )
+                    redirect_success = True
+                except Exception:
+                    # Strategy 2: Check if we're already on the right page or a variant
+                    current_url = self.page.url
+                    if "gibney.my.site.com/s/" in current_url or "booking" in current_url:
+                        redirect_success = True
+                        logger.debug(f"Already on expected page: {current_url}")
+                    else:
+                        # Strategy 3: Wait for specific elements that appear after login
+                        try:
+                            await self.page.wait_for_selector(
+                                'a:has-text("My Rentals"), nav, community_navigation-global-navigation',
+                                timeout=15000,
+                                state="visible"
+                            )
+                            redirect_success = True
+                            logger.debug("Found post-login navigation elements")
+                        except Exception:
+                            pass
+                
+                if redirect_success:
+                    logger.debug("Successfully logged in")
+                    if self.sync_logger:
+                        self.sync_logger.info("Login successful")
+                        self.sync_logger.log_timing("Login process", login_start_time)
+                else:
+                    raise Exception("Login redirect failed - unable to verify successful login")
+                    
             except Exception as e:
                 if self.sync_logger:
                     self.sync_logger.error(
-                        "Login failed - timeout waiting for redirect", error=e
+                        "Login failed - timeout or redirect issue", error=e
                     )
-                raise
+                # Check if it's a timeout issue
+                if "timeout" in str(e).lower():
+                    raise GibneyScrapingError(
+                        "Login timed out. The Gibney website is responding slowly. Please try again later."
+                    )
+                else:
+                    raise
 
             # Now navigate to My Rentals by clicking the link
             logger.debug("Looking for 'My Rentals' link...")
@@ -266,7 +328,7 @@ class GibneyScraper:
             for selector in my_rentals_selectors:
                 try:
                     logger.debug(f"Trying My Rentals selector: {selector}")
-                    await self.page.click(selector, timeout=5000)
+                    await self.page.click(selector, timeout=ELEMENT_TIMEOUT)
                     rentals_link_clicked = True
                     logger.debug(
                         f"Successfully clicked My Rentals with selector: {selector}"
@@ -287,8 +349,8 @@ class GibneyScraper:
                 logger.debug("Waiting for navigation to rentals page...")
                 try:
                     await self.page.wait_for_url(
-                        f"{RENTALS_URL}**", timeout=45000
-                    )  # Increased timeout to 45 seconds
+                        f"{RENTALS_URL}**", timeout=NAVIGATION_TIMEOUT
+                    )
                 except Exception as nav_error:
                     # Log current URL and page info for debugging
                     current_url = self.page.url
@@ -305,7 +367,7 @@ class GibneyScraper:
                         logger.warning(
                             "Attempting direct navigation to rentals page as fallback..."
                         )
-                        await self.page.goto(RENTALS_URL, timeout=30000)
+                        await self.page.goto(RENTALS_URL, timeout=PAGE_LOAD_TIMEOUT)
 
             logger.info(f"Login successful for user: {email}")
 
@@ -338,7 +400,7 @@ class GibneyScraper:
             if self.sync_logger:
                 self.sync_logger.info("Starting rental data scraping")
 
-            scraping_start_time = datetime.now()
+            scraping_start_time = datetime.now(timezone.utc)
 
             # Navigate to rentals page if not already there
             if RENTALS_URL not in self.page.url:
@@ -351,7 +413,7 @@ class GibneyScraper:
 
             # Wait for page to load
             logger.debug("Waiting for rental table to load")
-            await self.page.wait_for_selector("table.forceRecordLayout", timeout=30000)
+            await self.page.wait_for_selector("table.forceRecordLayout", timeout=PAGE_LOAD_TIMEOUT)
 
             all_rentals = []
             page_number = 1
@@ -504,8 +566,8 @@ class GibneyScraper:
                                     "All date format attempts failed, using fallback"
                                 )
                                 # Use current time as fallback
-                                start_dt = datetime.now()
-                                end_dt = datetime.now()
+                                start_dt = datetime.now(timezone.utc)
+                                end_dt = datetime.now(timezone.utc)
                             else:
                                 logger.debug(
                                     f"Parsed dates successfully: {start_dt} to {end_dt}"
@@ -516,8 +578,8 @@ class GibneyScraper:
                                 f"Exception during date parsing for {rental_name}: {e}"
                             )
                             # Use current time as fallback
-                            start_dt = datetime.now()
-                            end_dt = datetime.now()
+                            start_dt = datetime.now(timezone.utc)
+                            end_dt = datetime.now(timezone.utc)
 
                         # Parse price
                         price = parse_price(price_str)
@@ -608,10 +670,10 @@ class GibneyScraper:
                             try:
                                 # Wait for table to update (might need to adjust selector)
                                 await self.page.wait_for_load_state(
-                                    "networkidle", timeout=10000
+                                    "networkidle", timeout=NETWORK_IDLE_TIMEOUT
                                 )
                                 await self.page.wait_for_selector(
-                                    "table.forceRecordLayout", timeout=10000
+                                    "table.forceRecordLayout", timeout=ELEMENT_TIMEOUT
                                 )
                                 # Additional wait to ensure content is fully rendered
                                 await self.page.wait_for_timeout(2000)
