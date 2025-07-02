@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-
 from backend.calendar_generator import generate_ical_calendar
 from backend.models import Booking, User
 

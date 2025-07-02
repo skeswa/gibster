@@ -98,8 +98,11 @@ def run_sync_task_in_background(user_id: str, job_id: str):
     # Create a new database session for the background task
     db = SessionLocal()
     try:
+        # Convert string IDs to UUID objects
+        user_uuid = UUID(user_id)
+        
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_uuid).first()
         if not user:
             logger.error(f"User {user_id} not found in background task")
             return
@@ -122,7 +125,8 @@ def run_sync_task_in_background(user_id: str, job_id: str):
         )
         # Try to update job status to failed
         try:
-            job = db.query(SyncJob).filter(SyncJob.id == job_id).first()
+            job_uuid = UUID(job_id)
+            job = db.query(SyncJob).filter(SyncJob.id == job_uuid).first()
             if job:
                 setattr(job, "status", "failed")
                 setattr(job, "error_message", f"Background task error: {str(e)}")

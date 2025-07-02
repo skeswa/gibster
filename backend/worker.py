@@ -414,7 +414,9 @@ if USE_CELERY and celery_app:
         )
         db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
+            # Convert string user_id to UUID
+            user_uuid = UUID(user_id)
+            user = db.query(User).filter(User.id == user_uuid).first()
             if not user:
                 error_msg = f"User {user_id} not found"
                 logger.error(error_msg)
@@ -472,7 +474,9 @@ else:
         """Non-Celery version - runs sync version"""
         db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
+            # Convert string user_id to UUID
+            user_uuid = UUID(user_id)
+            user = db.query(User).filter(User.id == user_uuid).first()
             if not user:
                 error_msg = f"User {user_id} not found"
                 logger.error(error_msg)
