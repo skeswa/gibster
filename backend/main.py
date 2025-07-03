@@ -100,7 +100,7 @@ def run_sync_task_in_background(user_id: str, job_id: str):
     try:
         # Convert string IDs to UUID objects
         user_uuid = UUID(user_id)
-        
+
         # Get user from database
         user = db.query(User).filter(User.id == user_uuid).first()
         if not user:
@@ -178,19 +178,6 @@ async def request_tracking_middleware(request: Request, call_next):
             or request.method in ["POST", "PUT", "DELETE"]  # Log mutation operations
             or not is_health_check  # Log non-health check requests
         )
-
-        if should_log:
-            log_level = logger.warning if response.status_code >= 400 else logger.info
-            log_level(
-                f"Request completed",
-                extra={
-                    "request_id": request_id,
-                    "method": request.method,
-                    "url": str(request.url),
-                    "status_code": response.status_code,
-                    "response_time_seconds": round(response_time, 3),
-                },
-            )
 
         # Add request ID to response headers for debugging
         response.headers["X-Request-ID"] = request_id
@@ -561,9 +548,11 @@ async def sync_bookings(
         )
 
     except Exception as e:
-        logger.error(f"Failed to start sync for {current_user.email}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to start sync for {current_user.email}: {e}", exc_info=True
+        )
         db.rollback()
-        
+
         # Try to create a failed job record for visibility
         try:
             failed_job = SyncJob(
@@ -576,11 +565,13 @@ async def sync_bookings(
             )
             db.add(failed_job)
             db.commit()
-            logger.info(f"Created failed job record {failed_job.id} for error visibility")
+            logger.info(
+                f"Created failed job record {failed_job.id} for error visibility"
+            )
         except:
             logger.error("Failed to create error job record")
             db.rollback()
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start sync: {str(e)}",
@@ -595,10 +586,6 @@ async def get_sync_status(
     logger.debug(f"Retrieving sync status for user: {current_user.email}")
 
     try:
-        # Check for stale jobs before returning status
-        from .worker import check_and_mark_stale_jobs
-
-        check_and_mark_stale_jobs(db)
         # Get the most recent sync job for this user
         latest_job = (
             db.query(SyncJob)

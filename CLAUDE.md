@@ -23,13 +23,6 @@ source venv/bin/activate         # Activate virtual environment
 python scripts/dev_setup.py      # One-time automated setup
 python scripts/run_server.py     # Start development server (port 8000)
 
-# Testing (type checking runs by default)
-python scripts/run_tests.py --coverage   # Run type checking + all tests with coverage
-python scripts/run_tests.py --backend-only --type unit  # Type check + unit tests only
-python scripts/run_tests.py --skip-type-check  # Skip type checking, tests only
-python scripts/run_tests.py --type-check-only  # Type checking only, no tests
-pytest -v backend/tests/test_some_file.py::test_function  # Run specific test (no type check)
-
 # Code quality
 black backend/                   # Format Python code
 isort backend/                   # Sort imports
@@ -40,6 +33,85 @@ cd backend && alembic upgrade head       # Run migrations
 # Note: Always run database commands from the backend/ directory
 # The SQLite database file is at backend/gibster_dev.db
 ```
+
+### Testing
+
+#### Test Structure
+- `backend/tests/test_*.py` - Unit and integration tests (run automatically in CI)
+- `backend/tests/test_scraper_e2e.py` - End-to-end tests against real Gibney website (manual only)
+- `frontend/__tests__/` - Frontend component and integration tests
+
+#### Running Tests
+
+```bash
+# Run all tests with type checking (default)
+python scripts/run_tests.py
+
+# Backend-specific tests
+python scripts/run_tests.py --backend-only --type unit  # Type check + unit tests only
+python scripts/run_tests.py --backend-only --type integration  # Integration tests only
+
+# Frontend-specific tests
+python scripts/run_tests.py --frontend-only
+
+# Test options
+python scripts/run_tests.py --coverage   # Run with coverage reports
+python scripts/run_tests.py --skip-type-check  # Skip type checking, tests only
+python scripts/run_tests.py --type-check-only  # Type checking only, no tests
+
+# Run specific test directly
+pytest -v backend/tests/test_some_file.py::test_function  # No type check
+```
+
+#### End-to-End Tests
+
+The E2E tests connect to the real Gibney website to verify the scraper works correctly.
+
+**Setup:**
+
+Option 1: Add Gibney credentials to `backend/.env` file:
+```bash
+# Add to backend/.env
+GIBNEY_EMAIL=your-email@example.com
+GIBNEY_PASSWORD=your-password
+```
+
+Option 2: Set environment variables:
+```bash
+export GIBNEY_EMAIL="your-email@example.com"
+export GIBNEY_PASSWORD="your-password"
+```
+
+Note: These are the same credentials used for development/testing throughout the application.
+
+**Run E2E tests:**
+```bash
+# Using the test runner (will automatically load from backend/.env)
+python scripts/run_tests.py --e2e
+
+# Or run directly
+python backend/tests/test_scraper_e2e.py
+```
+
+The E2E tests will:
+1. Test login functionality with visual browser (headless=False)
+2. Verify post-login navigation
+3. Test full booking scraping
+4. Display found bookings
+
+#### Test Markers
+
+Backend tests use pytest markers for categorization:
+- `@pytest.mark.unit` - Fast unit tests (no external dependencies)
+- `@pytest.mark.integration` - Tests that may use database or other services
+
+#### Debugging Scraper Issues
+
+When the scraper fails, it creates debug files in the project root:
+- `debug_*.png` - Screenshots of the page at failure point
+- `debug_*.html` - HTML content of the page for inspection
+
+The E2E tests run with `headless=False` for the login test, allowing you to watch the browser interaction in real-time.
 
 ### Kubernetes Deployment
 
@@ -69,6 +141,67 @@ npm run lint                    # Run ESLint
 npm run type-check              # TypeScript type checking
 npm run format                  # Prettier formatting
 ```
+
+#### Theme System
+
+The frontend includes a comprehensive dark mode theme system built with:
+- **next-themes**: For theme management and persistence
+- **Tailwind CSS**: With class-based dark mode (`darkMode: ["class"]`)
+- **CSS Variables**: For dynamic color theming
+
+##### Theme Components
+
+**ThemeProvider** (`/src/app/providers/ThemeProvider.tsx`)
+- Wraps the application and provides theme context
+- Enables system preference detection and localStorage persistence
+- Prevents flash on reload with `suppressHydrationWarning`
+
+**Theme Toggle Components**:
+- `ThemeToggle` - Button group for light/dark/system selection
+- `ThemeDropdown` - Dropdown menu for theme switching
+- `ThemeSelect` - Native select element (most accessible)
+
+**Custom Hook** (`/src/hooks/useThemeState.ts`):
+```typescript
+const { theme, setTheme, currentTheme, isDarkMode, mounted } = useThemeState();
+```
+
+##### Usage Examples
+
+Basic theme toggle:
+```tsx
+import { ThemeToggle } from '@/components/ThemeToggle';
+
+function Header() {
+  return <header><ThemeToggle /></header>;
+}
+```
+
+Theme-aware styling:
+```tsx
+<div className="bg-white dark:bg-gray-900">
+  <p className="text-black dark:text-white">Theme-aware text</p>
+</div>
+```
+
+Conditional rendering:
+```tsx
+const { isDarkMode, mounted } = useThemeState();
+if (!mounted) return null; // Avoid hydration mismatch
+
+return <div>{isDarkMode ? 'Dark mode' : 'Light mode'}</div>;
+```
+
+##### Theme Demo
+
+Visit `/theme-demo` in development to see all themed components in action.
+
+##### Best Practices
+
+1. Always check `mounted` state before rendering theme-dependent content
+2. Use the `dark:` Tailwind modifier for conditional dark mode styles
+3. Prefer CSS variables for colors to ensure consistency
+4. Test both light and dark modes when developing new components
 
 ## Architecture Overview
 
@@ -127,6 +260,8 @@ gibster/
 - Frontend environment variables in `frontend/.env.local` (copy from `frontend/.env.example`)
 - Backend config: `backend/app/core/config.py`
 - Frontend config: `frontend/next.config.ts`
+- Theme CSS variables: `frontend/src/globals.css`
+- Tailwind dark mode config: `frontend/tailwind.config.js` with `darkMode: ["class"]`
 - Test markers: `unit`, `integration` in `backend/pytest.ini`
 
 ### Important Development Notes

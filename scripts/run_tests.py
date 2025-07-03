@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Simple test runner for Gibster - supports both backend and frontend tests with type checking
+
+Supports running unit, integration, and end-to-end tests.
 """
 import argparse
 import os
@@ -141,6 +143,41 @@ def run_backend_tests(args):
     return run_command(cmd)
 
 
+def run_e2e_tests(args):
+    """Run end-to-end tests against real Gibney site"""
+    print("\n🌐 Running end-to-end tests...")
+    print("⚠️  These tests connect to the real Gibney website!")
+    
+    # Check for credentials (the test script will load from .env if available)
+    email = os.environ.get("GIBNEY_EMAIL")
+    password = os.environ.get("GIBNEY_PASSWORD")
+    
+    # Check if .env file exists
+    env_path = os.path.join("backend", ".env")
+    env_exists = os.path.exists(env_path)
+    
+    if not email or not password:
+        print("\n⚠️  No test credentials found in environment!")
+        if env_exists:
+            print("   The test will attempt to load from backend/.env")
+        else:
+            print("\n❌ E2E tests require Gibney credentials!")
+            print("\nPlease provide credentials in one of these ways:")
+            print("\n1. Add to backend/.env file:")
+            print("   GIBNEY_EMAIL=your-gibney-email")
+            print("   GIBNEY_PASSWORD=your-gibney-password")
+            print("\n2. Set environment variables:")
+            print("   export GIBNEY_EMAIL='your-gibney-email'")
+            print("   export GIBNEY_PASSWORD='your-gibney-password'")
+            print("\nThen run the tests again.")
+            # Don't fail here - let the test script handle it
+    
+    # Run the e2e test script directly
+    cmd = ["python3", "backend/tests/test_scraper_e2e.py"]
+    
+    return run_command(cmd)
+
+
 def run_frontend_type_check(args):
     """Run TypeScript type checking on frontend code"""
     print("\n🔍 Running frontend type checking...")
@@ -226,6 +263,9 @@ def main():
     parser.add_argument(
         "--type-check-only", action="store_true", help="Run only type checking, no tests"
     )
+    parser.add_argument(
+        "--e2e", action="store_true", help="Run end-to-end tests against real Gibney site (requires credentials)"
+    )
 
     args = parser.parse_args()
 
@@ -233,6 +273,19 @@ def main():
     if args.backend_only and args.frontend_only:
         print("❌ Cannot specify both --backend-only and --frontend-only")
         sys.exit(1)
+    
+    # Handle e2e tests separately
+    if args.e2e:
+        if args.skip_type_check or args.type_check_only or args.coverage:
+            print("❌ E2E tests cannot be combined with other test options")
+            sys.exit(1)
+        
+        exit_code = run_e2e_tests(args)
+        if exit_code == 0:
+            print("\n✅ E2E tests passed!")
+        else:
+            print("\n❌ E2E tests failed")
+        sys.exit(exit_code)
 
     exit_codes = []
     type_check_failed = False
