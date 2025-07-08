@@ -37,9 +37,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider initialUser={user}>
-            {children}
-          </AuthProvider>
+          <AuthProvider initialUser={user}>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

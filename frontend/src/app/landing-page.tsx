@@ -46,7 +46,10 @@ export default function LandingPage() {
           </p>
           <div className='flex flex-col gap-4 sm:flex-row sm:justify-center'>
             <Link href='/register'>
-              <Button size='lg' className='w-full sm:w-auto bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white'>
+              <Button
+                size='lg'
+                className='w-full sm:w-auto bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white'
+              >
                 Get Started
                 <ArrowRight className='ml-2 h-4 w-4' />
               </Button>
@@ -161,7 +164,10 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id='how-it-works' className='bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm py-20'>
+      <section
+        id='how-it-works'
+        className='bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm py-20'
+      >
         <div className='container mx-auto px-4'>
           <div className='mx-auto max-w-3xl text-center'>
             <h3 className='mb-12 text-3xl font-bold text-gray-900 dark:text-white'>
@@ -286,7 +292,10 @@ export default function LandingPage() {
               Join hundreds of dancers who never miss a class.
             </p>
             <Link href='/register'>
-              <Button size='lg' className='bg-white text-purple-600 hover:bg-gray-100'>
+              <Button
+                size='lg'
+                className='bg-white text-purple-600 hover:bg-gray-100'
+              >
                 Get Started Now
                 <ArrowRight className='ml-2 h-4 w-4' />
               </Button>
