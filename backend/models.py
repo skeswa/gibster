@@ -46,22 +46,42 @@ class Booking(Base):
     __tablename__ = "bookings"
 
     id = Column(String, primary_key=True)  # From Gibney (e.g., "a27Pb...")
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
     name = Column(String, nullable=False)  # e.g., "R-490015"
-    start_time = Column(DateTime, nullable=False)
+    start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
     studio = Column(String, nullable=False)
     location = Column(String, nullable=False)
     status = Column(String, nullable=False)
     price = Column(Numeric(10, 2), nullable=True)
     record_url = Column(String, nullable=True)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationship
     user = relationship("User", back_populates="bookings")
 
     def __repr__(self):
         return f"<Booking {self.name} - {self.studio}>"
+
+    def create_hash(self):
+        """Create a hash of relevant booking fields for change detection"""
+        import hashlib
+        import json
+
+        relevant_fields = {
+            "name": self.name,
+            "start_time": str(self.start_time),
+            "end_time": str(self.end_time),
+            "studio": self.studio,
+            "location": self.location,
+            "status": self.status,
+            "price": float(self.price) if self.price else 0,
+        }
+
+        json_str = json.dumps(relevant_fields, sort_keys=True)
+        return hashlib.sha256(json_str.encode()).hexdigest()
 
 
 class SyncJob(Base):

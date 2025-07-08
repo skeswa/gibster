@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
@@ -27,6 +29,29 @@ PAGE_LOAD_TIMEOUT = 25000  # 25 seconds for page loads (reduced from 45)
 NAVIGATION_TIMEOUT = 30000  # 30 seconds for navigation (reduced from 60)
 ELEMENT_TIMEOUT = 10000  # 10 seconds for element operations
 NETWORK_IDLE_TIMEOUT = 5000  # 5 seconds for network idle (reduced from 10)
+
+# Batch processing constants
+BATCH_SIZE = 100  # Process bookings in batches of 100
+
+
+def create_booking_hash(booking_data: Dict[str, Any]) -> str:
+    """Create a hash of booking data for efficient change detection"""
+    # Include only fields that matter for change detection
+    relevant_fields = {
+        "name": booking_data.get("name"),
+        "start_time": str(booking_data.get("start_time")),
+        "end_time": str(booking_data.get("end_time")),
+        "studio": booking_data.get("studio"),
+        "location": booking_data.get("location"),
+        "status": booking_data.get("status"),
+        "price": float(booking_data.get("price", 0)),
+    }
+
+    # Create a deterministic JSON string
+    json_str = json.dumps(relevant_fields, sort_keys=True)
+
+    # Return hash
+    return hashlib.sha256(json_str.encode()).hexdigest()
 
 
 def parse_booking_row(row_html: str) -> Dict[str, Any]:
@@ -1070,59 +1095,78 @@ async def scrape_user_bookings(
         if sync_logger:
             sync_logger.info(f"Processing {len(rental_data)} bookings from Gibney")
 
+        # Start timing database operations
+        db_start_time = datetime.now(timezone.utc)
+
         # Convert to Booking objects and update database
         updated_bookings = []
         created_count = 0
         updated_count = 0
         unchanged_count = 0
 
-        # Remove old bookings that are no longer in the scraped data
-        existing_booking_ids = {booking["id"] for booking in rental_data}
-        old_bookings = (
-            db.query(Booking)
-            .filter(Booking.user_id == user.id)
-            .filter(~Booking.id.in_(existing_booking_ids))
-            .all()
+        # Bulk load all existing bookings for this user (1 query instead of N)
+        load_start = datetime.now(timezone.utc)
+        existing_bookings = {
+            b.id: b for b in db.query(Booking).filter(Booking.user_id == user.id).all()
+        }
+        load_duration = (datetime.now(timezone.utc) - load_start).total_seconds()
+        logger.debug(
+            f"Loaded {len(existing_bookings)} existing bookings in {load_duration:.3f}s"
         )
 
-        for old_booking in old_bookings:
-            logger.info(f"Removing old booking: {old_booking.name}")
-            if sync_logger:
-                sync_logger.log_booking_processed(
-                    str(old_booking.id),
-                    str(old_booking.name),
-                    "deleted",
-                    reason="No longer in Gibney data",
-                )
-            db.delete(old_booking)
+        # Find bookings to delete (no longer in scraped data)
+        scraped_ids = {booking["id"] for booking in rental_data}
+        bookings_to_delete = [
+            booking
+            for booking_id, booking in existing_bookings.items()
+            if booking_id not in scraped_ids
+        ]
 
-        # Update or create bookings
+        # Delete old bookings
+        if bookings_to_delete:
+            delete_ids = [b.id for b in bookings_to_delete]
+            db.query(Booking).filter(
+                Booking.user_id == user.id, Booking.id.in_(delete_ids)
+            ).delete(synchronize_session=False)
+
+            for old_booking in bookings_to_delete:
+                logger.info(f"Removing old booking: {old_booking.name}")
+                if sync_logger:
+                    sync_logger.log_booking_processed(
+                        str(old_booking.id),
+                        str(old_booking.name),
+                        "deleted",
+                        reason="No longer in Gibney data",
+                    )
+
+        # Prepare bulk operations
+        bookings_to_insert = []
+        bookings_to_update = []
+
+        # Process scraped bookings
         for booking_data in rental_data:
             try:
-                # Check if booking already exists
-                existing_booking = (
-                    db.query(Booking)
-                    .filter(Booking.id == booking_data["id"])
-                    .filter(Booking.user_id == user.id)
-                    .first()
-                )
+                booking_id = booking_data["id"]
+                existing_booking = existing_bookings.get(booking_id)
 
                 if existing_booking:
-                    # Check if booking has actually changed
-                    changed = False
-                    for key, value in booking_data.items():
-                        if key != "id" and getattr(existing_booking, key) != value:
-                            changed = True
-                            setattr(existing_booking, key, value)
+                    # Use hash comparison for efficient change detection
+                    existing_hash = existing_booking.create_hash()
+                    new_hash = create_booking_hash(booking_data)
+                    changed = existing_hash != new_hash
 
-                    setattr(existing_booking, "last_seen", datetime.now(timezone.utc))
-                    updated_bookings.append(existing_booking)
+                    update_data = {"last_seen": datetime.now(timezone.utc)}
 
                     if changed:
+                        # Only update fields if hash differs
+                        for key, value in booking_data.items():
+                            if key != "id":
+                                update_data[key] = value
+                        # Add to update batch
+                        update_data["id"] = booking_id
+                        bookings_to_update.append(update_data)
                         updated_count += 1
-                        logger.debug(
-                            f"Updated existing booking: {booking_data['name']}"
-                        )
+                        logger.debug(f"Booking changed: {booking_data['name']}")
                         if sync_logger:
                             sync_logger.log_booking_processed(
                                 booking_data["id"],
@@ -1132,27 +1176,22 @@ async def scrape_user_bookings(
                                 start_time=booking_data["start_time"],
                             )
                     else:
+                        # Still update last_seen even if unchanged
+                        bookings_to_update.append(
+                            {"id": booking_id, "last_seen": datetime.now(timezone.utc)}
+                        )
                         unchanged_count += 1
                         logger.debug(f"Booking unchanged: {booking_data['name']}")
+
+                    updated_bookings.append(existing_booking)
                 else:
-                    # Create new booking
-                    new_booking = Booking(
-                        id=booking_data["id"],
-                        user_id=user.id,
-                        name=booking_data["name"],
-                        start_time=booking_data["start_time"],
-                        end_time=booking_data["end_time"],
-                        studio=booking_data["studio"],
-                        location=booking_data["location"],
-                        status=booking_data["status"],
-                        price=booking_data["price"],
-                        record_url=booking_data["record_url"],
-                        last_seen=datetime.now(timezone.utc),
-                    )
-                    db.add(new_booking)
-                    updated_bookings.append(new_booking)
+                    # Prepare for bulk insert
+                    insert_data = booking_data.copy()
+                    insert_data["user_id"] = user.id
+                    insert_data["last_seen"] = datetime.now(timezone.utc)
+                    bookings_to_insert.append(insert_data)
                     created_count += 1
-                    logger.debug(f"Created new booking: {booking_data['name']}")
+                    logger.debug(f"New booking to create: {booking_data['name']}")
                     if sync_logger:
                         sync_logger.log_booking_processed(
                             booking_data["id"],
@@ -1168,8 +1207,44 @@ async def scrape_user_bookings(
                 )
                 continue
 
-        # Commit changes
+        # Perform bulk operations in batches
+        if bookings_to_insert:
+            logger.debug(f"Bulk inserting {len(bookings_to_insert)} new bookings")
+            # Process inserts in batches
+            for i in range(0, len(bookings_to_insert), BATCH_SIZE):
+                batch = bookings_to_insert[i : i + BATCH_SIZE]
+                db.bulk_insert_mappings(Booking, batch)  # type: ignore[arg-type]
+                db.commit()  # Commit each batch
+                logger.debug(
+                    f"Inserted batch {i//BATCH_SIZE + 1} ({len(batch)} bookings)"
+                )
+
+                # Add new bookings to updated_bookings list
+                for insert_data in batch:
+                    new_booking = Booking(**insert_data)
+                    updated_bookings.append(new_booking)
+
+        if bookings_to_update:
+            logger.debug(f"Bulk updating {len(bookings_to_update)} existing bookings")
+            # Process updates in batches
+            for i in range(0, len(bookings_to_update), BATCH_SIZE):
+                batch = bookings_to_update[i : i + BATCH_SIZE]
+                db.bulk_update_mappings(Booking, batch)  # type: ignore[arg-type]
+                db.commit()  # Commit each batch
+                logger.debug(
+                    f"Updated batch {i//BATCH_SIZE + 1} ({len(batch)} bookings)"
+                )
+
+        # Final commit for any remaining operations
         db.commit()
+
+        # Log database operation performance
+        db_duration = (datetime.now(timezone.utc) - db_start_time).total_seconds()
+        logger.info(
+            f"Database sync completed in {db_duration:.2f}s - "
+            f"Created: {created_count}, Updated: {updated_count}, "
+            f"Unchanged: {unchanged_count}, Deleted: {len(bookings_to_delete)}"
+        )
 
         logger.info(f"Updated {len(updated_bookings)} bookings for user {user.email}")
 
