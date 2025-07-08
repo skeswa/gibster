@@ -257,9 +257,6 @@ class GibneyScraper:
                 'input[type="password"]', state="visible", timeout=ELEMENT_TIMEOUT
             )
 
-            print(f"[DEBUG] email: {email}")
-            print(f"[DEBUG] password: {password}")
-
             # Fill the form fields - use placeholder attributes as backup selectors
             logger.debug("Filling username field...")
             await self.page.fill(
@@ -700,7 +697,11 @@ class GibneyScraper:
                 except Exception:
                     continue
 
-            if not table_found:
+            if table_found:
+                # Wait a bit for the table content to stabilize
+                logger.debug("Table found, waiting for content to stabilize...")
+                await self.page.wait_for_timeout(1000)
+            else:
                 logger.error("Failed to find any suitable table selector")
 
                 # Take screenshot for debugging
@@ -743,6 +744,11 @@ class GibneyScraper:
             scroll_count = 0
             last_row_count = 0
             no_new_content_count = 0
+            # Increased threshold for more patient scrolling
+            MAX_NO_NEW_CONTENT_ATTEMPTS = 4  # Increased from 2 to 4
+            
+            # Log initial state
+            logger.info(f"Starting infinite scroll scraping (max attempts: {max_scroll_attempts})")
 
             while scroll_count < max_scroll_attempts:
                 scroll_start_time = datetime.now(timezone.utc)
@@ -787,7 +793,10 @@ class GibneyScraper:
                             )
                             break
 
-                logger.info(f"Found {current_row_count} total rows in view")
+                logger.info(
+                    f"Found {current_row_count} total rows in DOM "
+                    f"(previous: {last_row_count}, processed IDs: {len(processed_ids)})"
+                )
 
                 # Process all visible rows
                 new_rentals_count = 0
@@ -899,25 +908,50 @@ class GibneyScraper:
                 # Check if we got new content
                 if current_row_count == last_row_count:
                     no_new_content_count += 1
-                    logger.debug(f"No new rows loaded (attempt {no_new_content_count})")
+                    logger.info(
+                        f"No new rows loaded (attempt {no_new_content_count}/{MAX_NO_NEW_CONTENT_ATTEMPTS}). "
+                        f"Current total: {current_row_count} rows, {len(all_rentals)} unique bookings"
+                    )
+                    logger.debug(
+                        f"Current row count: {current_row_count}, Last row count: {last_row_count}"
+                    )
 
                     # If no new content after multiple attempts, we're done
-                    if no_new_content_count >= 2:
+                    if no_new_content_count >= MAX_NO_NEW_CONTENT_ATTEMPTS:
                         logger.info(
-                            "No new content after 2 attempts, assuming all data loaded"
+                            f"No new content after {MAX_NO_NEW_CONTENT_ATTEMPTS} attempts at row count {current_row_count}, "
+                            f"total unique bookings: {len(all_rentals)}. Assuming all data loaded."
                         )
+                        # Take a debug screenshot when stopping
+                        if no_new_content_count == MAX_NO_NEW_CONTENT_ATTEMPTS:
+                            try:
+                                screenshot_path = f"debug_scroll_stop_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                                await self.page.screenshot(path=screenshot_path)
+                                logger.info(f"Saved debug screenshot to {screenshot_path}")
+                            except Exception as e:
+                                logger.debug(f"Failed to save debug screenshot: {e}")
                         break
                 else:
+                    rows_added = current_row_count - last_row_count
+                    logger.debug(
+                        f"Loaded {rows_added} new rows (total now: {current_row_count})"
+                    )
                     no_new_content_count = 0
                     last_row_count = current_row_count
 
                 # Scroll to bottom to trigger infinite scroll
                 logger.debug("Scrolling to bottom to trigger infinite scroll...")
 
-                # First, scroll to the bottom of the page
-                await self.page.evaluate(
-                    "window.scrollTo(0, document.body.scrollHeight)"
-                )
+                # Multiple scroll attempts to ensure the event is registered
+                for scroll_attempt in range(3):
+                    # Scroll to the bottom of the page
+                    await self.page.evaluate(
+                        "window.scrollTo(0, document.body.scrollHeight)"
+                    )
+                    
+                    # Small delay between scroll attempts
+                    if scroll_attempt < 2:
+                        await self.page.wait_for_timeout(200)
 
                 # Also try scrolling the table container if it exists
                 try:
@@ -940,13 +974,20 @@ class GibneyScraper:
                                 parent = parent.parentElement;
                             }
                         }
+                        
+                        // Trigger scroll events explicitly
+                        window.dispatchEvent(new Event('scroll'));
+                        document.dispatchEvent(new Event('scroll'));
                     """
                     )
                 except Exception as e:
                     logger.debug(f"Table container scroll attempt failed: {e}")
+                
+                # Additional wait after scrolling to let the page register the scroll
+                await self.page.wait_for_timeout(500)
 
                 # Wait for potential spinner/loading indicator
-                logger.debug("Waiting for loading indicator...")
+                logger.debug("Checking for loading indicators...")
 
                 # Look for common loading indicators
                 loading_selectors = [
@@ -986,8 +1027,17 @@ class GibneyScraper:
                     }
                 """
 
-                # Quick check for any visible spinner (takes ~10ms vs 2000ms per selector)
-                spinner_selector = await self.page.evaluate(spinner_check_script)
+                # First wait a bit for spinner to potentially appear after scroll
+                await self.page.wait_for_timeout(300)
+
+                # Check for spinner multiple times as it might appear with delay
+                spinner_selector = None
+                for spinner_check in range(3):
+                    spinner_selector = await self.page.evaluate(spinner_check_script)
+                    if spinner_selector:
+                        break
+                    if spinner_check < 2:  # Don't wait after last check
+                        await self.page.wait_for_timeout(200)
 
                 if spinner_selector:
                     logger.debug(f"Found loading indicator: {spinner_selector}")
@@ -995,12 +1045,12 @@ class GibneyScraper:
                     try:
                         await self.page.wait_for_selector(
                             spinner_selector,
-                            timeout=10000,
+                            timeout=15000,  # Increased from 10s to 15s
                             state="hidden",
                         )
                         logger.debug("Loading indicator disappeared")
-                        # Small wait for DOM to stabilize after spinner
-                        await self.page.wait_for_timeout(200)
+                        # Wait for DOM to stabilize after spinner
+                        await self.page.wait_for_timeout(500)  # Increased from 200ms
                     except Exception as e:
                         logger.debug(f"Spinner wait timeout: {e}")
                 else:
@@ -1009,16 +1059,86 @@ class GibneyScraper:
                         "No loading indicator found, checking for content changes..."
                     )
 
-                    # Wait for potential DOM changes instead of fixed timeout
-                    try:
-                        await self.page.wait_for_function(
-                            f"document.querySelectorAll('{self._table_selector} tbody tr').length > {current_row_count}",
-                            timeout=1500,
-                        )
-                        logger.debug("New content detected")
-                    except:
-                        # No new content within timeout
-                        logger.debug("No new content detected within timeout")
+                    # Wait for potential DOM changes with a progressive strategy
+                    # Start with a longer wait time to give infinite scroll time to trigger
+                    logger.debug("Waiting for infinite scroll to trigger...")
+
+                    # First, wait a bit for the scroll event to register
+                    await self.page.wait_for_timeout(500)
+
+                    # Check multiple times for new content with increasing patience
+                    content_check_attempts = 0
+                    max_content_checks = 4  # Increased from 3
+                    # More patient wait times, especially for the first check
+                    check_intervals = [3000, 4000, 3000, 2000]  # Longer initial waits
+
+                    new_content_found = False
+                    for attempt in range(max_content_checks):
+                        try:
+                            await self.page.wait_for_function(
+                                f"document.querySelectorAll('{self._table_selector} tbody tr').length > {current_row_count}",
+                                timeout=check_intervals[attempt],
+                            )
+                            logger.debug(
+                                f"New content detected on attempt {attempt + 1}"
+                            )
+                            new_content_found = True
+                            break
+                        except:
+                            content_check_attempts += 1
+                            logger.debug(
+                                f"No new content yet (attempt {attempt + 1}/{max_content_checks}), "
+                                f"waited {check_intervals[attempt]}ms"
+                            )
+
+                            # On intermediate attempts, try scrolling again
+                            if attempt < max_content_checks - 1:
+                                logger.debug("Retrying scroll to trigger load...")
+                                # Try multiple scroll methods
+                                await self.page.evaluate(
+                                    "window.scrollTo(0, document.body.scrollHeight)"
+                                )
+                                await self.page.evaluate(
+                                    "window.scrollBy(0, 100)"  # Small additional scroll
+                                )
+                                # Longer wait before next check
+                                await self.page.wait_for_timeout(500)
+
+                    if not new_content_found:
+                        logger.debug("No new content detected after all attempts")
+
+                # Check for "end of list" indicators
+                try:
+                    end_of_list_indicators = await self.page.evaluate(
+                        """
+                        () => {
+                            // Check for common end-of-list messages
+                            const endTexts = ['no more', 'end of', 'showing all', 'that\'s all'];
+                            const pageText = document.body.innerText.toLowerCase();
+                            
+                            for (const text of endTexts) {
+                                if (pageText.includes(text)) {
+                                    return text;
+                                }
+                            }
+                            
+                            // Check if we're at the bottom of a scrollable container
+                            const scrollContainers = document.querySelectorAll('[style*="overflow"]');
+                            for (const container of scrollContainers) {
+                                if (container.scrollHeight > 0 && 
+                                    container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+                                    return 'at_bottom';
+                                }
+                            }
+                            
+                            return null;
+                        }
+                        """
+                    )
+                    if end_of_list_indicators:
+                        logger.info(f"Found end-of-list indicator: {end_of_list_indicators}")
+                except Exception as e:
+                    logger.debug(f"End-of-list check failed: {e}")
 
                 scroll_count += 1
 

@@ -214,7 +214,9 @@ Visit `/theme-demo` in development to see all themed components in action.
 5. Celery workers (or sync tasks in dev) scrape Gibney website using Playwright
    - Scraper handles infinite scroll automatically by scrolling to the bottom of the page
    - When scrolled to bottom, the page loads more bookings via JavaScript
-   - Scraper continues scrolling until no new content is loaded
+   - Uses progressive wait strategy with multiple retry attempts to ensure content loads
+   - Detects and waits for loading spinners when present
+   - Scraper continues scrolling until no new content is loaded after multiple attempts
 6. Calendar feed (.ics) is generated and made available for subscription
 
 ### Key Architectural Decisions

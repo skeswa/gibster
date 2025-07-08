@@ -77,7 +77,7 @@ class Booking(Base):
             "studio": self.studio,
             "location": self.location,
             "status": self.status,
-            "price": float(self.price) if self.price else 0,
+            "price": float(getattr(self, "price", 0) or 0),
         }
 
         json_str = json.dumps(relevant_fields, sort_keys=True)
