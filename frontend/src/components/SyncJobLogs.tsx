@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { SyncJobLog, SyncJobLogsResponse } from '@/types/sync';
 import {
@@ -48,7 +48,7 @@ const SyncJobLogs: React.FC<SyncJobLogsProps> = ({
   const [totalLogs, setTotalLogs] = useState(0);
   const limit = 100;
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     if (!jobId) return;
 
     setLoading(true);
@@ -81,13 +81,13 @@ const SyncJobLogs: React.FC<SyncJobLogsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId, page, levelFilter]);
 
   useEffect(() => {
     if (isOpen && jobId) {
       fetchLogs();
     }
-  }, [isOpen, jobId, levelFilter, page]);
+  }, [isOpen, jobId, levelFilter, page, fetchLogs]);
 
   const getLogIcon = (level: string) => {
     switch (level) {

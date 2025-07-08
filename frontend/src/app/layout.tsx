@@ -38,10 +38,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider initialUser={user}>
-            <div className='min-h-screen'>
-              <ClientHeader />
-              <main className='container mx-auto px-4 py-8'>{children}</main>
-            </div>
+            {children}
           </AuthProvider>
         </ThemeProvider>
       </body>

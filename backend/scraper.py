@@ -855,8 +855,8 @@ class GibneyScraper:
                             try:
                                 start_dt = datetime.strptime(
                                     start_time_str, date_format
-                                )
-                                end_dt = datetime.strptime(end_time_str, date_format)
+                                ).replace(tzinfo=timezone.utc)
+                                end_dt = datetime.strptime(end_time_str, date_format).replace(tzinfo=timezone.utc)
                                 break
                             except ValueError:
                                 continue
@@ -1293,7 +1293,7 @@ async def scrape_user_bookings(
                                 booking_data["name"],
                                 "updated",
                                 studio=booking_data["studio"],
-                                start_time=booking_data["start_time"],
+                                start_time=booking_data["start_time"].isoformat(),
                             )
                     else:
                         # Still update last_seen even if unchanged
@@ -1318,7 +1318,7 @@ async def scrape_user_bookings(
                             booking_data["name"],
                             "created",
                             studio=booking_data["studio"],
-                            start_time=booking_data["start_time"],
+                            start_time=booking_data["start_time"].isoformat(),
                         )
 
             except Exception as e:

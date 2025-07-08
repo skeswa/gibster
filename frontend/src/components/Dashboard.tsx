@@ -497,8 +497,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               <Alert className='mt-4'>
                 <AlertCircle className='h-4 w-4' />
                 <AlertDescription>
-                  Pro tip: For instant updates, use the "Sync Now" button in the
-                  settings card to manually refresh your bookings.
+                  Pro tip: For instant updates, use the &quot;Sync Now&quot;
+                  button in the settings card to manually refresh your bookings.
                 </AlertDescription>
               </Alert>
             )}

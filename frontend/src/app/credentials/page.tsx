@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth';
 import Credentials from '@/components/Credentials';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 export default async function CredentialsPage() {
   const user = await getServerSession();
@@ -10,5 +11,9 @@ export default async function CredentialsPage() {
     redirect('/login');
   }
 
-  return <Credentials user={user} />;
+  return (
+    <AuthenticatedLayout>
+      <Credentials user={user} />
+    </AuthenticatedLayout>
+  );
 }

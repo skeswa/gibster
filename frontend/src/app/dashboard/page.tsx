@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth';
 import Dashboard from '@/components/Dashboard';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { cookies } from 'next/headers';
 
 // Server-side API calls use internal/service URLs, client-side uses public URLs
@@ -81,6 +82,8 @@ export default async function DashboardPage() {
   const { bookings, calendarUrl } = await getDashboardData(token);
 
   return (
-    <Dashboard user={user} bookings={bookings} calendarUrl={calendarUrl} />
+    <AuthenticatedLayout>
+      <Dashboard user={user} bookings={bookings} calendarUrl={calendarUrl} />
+    </AuthenticatedLayout>
   );
 }

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
@@ -27,8 +27,8 @@ class User(Base):
     gibney_password = Column(String, nullable=True)  # Encrypted
     calendar_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     last_sync_at = Column(DateTime, nullable=True)  # Track last sync time
 
     # Relationship
@@ -57,7 +57,7 @@ class Booking(Base):
     status = Column(String, nullable=False)
     price = Column(Numeric(10, 2), nullable=True)
     record_url = Column(String, nullable=True)
-    last_seen = Column(DateTime, default=datetime.utcnow, index=True)
+    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Relationship
     user = relationship("User", back_populates="bookings")
@@ -95,11 +95,11 @@ class SyncJob(Base):
     progress = Column(String, nullable=True)  # Progress message
     bookings_synced = Column(Numeric, default=0)
     error_message = Column(Text, nullable=True)
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     triggered_manually = Column(Boolean, default=False)  # Track if sync was manual
     last_updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )  # Track last activity
 
     # Relationships
@@ -119,7 +119,7 @@ class SyncJobLog(Base):
     sync_job_id = Column(
         UUID(as_uuid=True), ForeignKey("sync_jobs.id"), nullable=False, index=True
     )
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     level = Column(String, nullable=False)  # 'INFO', 'WARNING', 'ERROR', 'DEBUG'
     message = Column(Text, nullable=False)
     details = Column(

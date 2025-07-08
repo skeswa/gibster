@@ -11,10 +11,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 export default function ThemeDemoPage() {
   return (
-    <div className='space-y-8'>
+    <AuthenticatedLayout>
+      <div className='space-y-8'>
       <div>
         <h1 className='text-4xl font-bold mb-2'>Theme Demo</h1>
         <p className='text-muted-foreground'>
@@ -112,5 +114,6 @@ export default function ThemeDemoPage() {
         </Card>
       </div>
     </div>
+    </AuthenticatedLayout>
   );
 }
