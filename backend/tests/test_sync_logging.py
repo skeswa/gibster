@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -45,7 +45,7 @@ def test_sync_job(test_db, test_user):
         user_id=test_user.id,
         status="running",
         triggered_manually=True,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
     test_db.add(job)
     test_db.commit()

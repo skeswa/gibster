@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Union
 
 from cryptography.fernet import Fernet
@@ -121,9 +121,9 @@ def create_access_token(
             logger.debug(f"Creating token for user: {user_email}")
 
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -151,8 +151,8 @@ def verify_token(token: str) -> Optional[str]:
         # Check token expiration - use UTC timestamps consistently
         exp = payload.get("exp")
         if exp:
-            exp_datetime = datetime.utcfromtimestamp(exp)
-            current_time = datetime.utcnow()
+            exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
+            current_time = datetime.now(timezone.utc)
             if current_time > exp_datetime:
                 logger.warning(
                     f"Token verification failed: Token expired at {exp_datetime} UTC (current time: {current_time} UTC)"

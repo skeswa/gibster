@@ -2,7 +2,7 @@ import logging
 import logging.config
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from dotenv import load_dotenv
@@ -17,7 +17,7 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # Add timestamp
-        record.timestamp = datetime.utcnow().isoformat()
+        record.timestamp = datetime.now(timezone.utc).isoformat()
 
         # Add service info
         record.service = "gibster-backend"

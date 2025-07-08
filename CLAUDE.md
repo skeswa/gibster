@@ -281,3 +281,10 @@ gibster/
    - Type errors will prevent tests from running
    - Use `--skip-type-check` to bypass type checking when needed
    - Run `mypy backend --ignore-missing-imports` to check types manually
+
+5. **Datetime Usage**: Always use timezone-aware datetimes to avoid timezone-related bugs:
+   - **DO NOT USE**: `datetime.utcnow()` - This is deprecated and creates timezone-naive datetimes
+   - **USE INSTEAD**: `datetime.now(timezone.utc)` - Creates timezone-aware UTC datetimes
+   - Always import `timezone` from datetime: `from datetime import datetime, timezone`
+   - This prevents "can't subtract offset-naive and offset-aware datetimes" errors
+   - All datetime objects in the codebase should be timezone-aware for consistency

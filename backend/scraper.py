@@ -183,10 +183,10 @@ class GibneyScraper:
             self.browser = await playwright.chromium.launch(
                 headless=self.headless,
                 args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-web-security',
-                    '--disable-features=IsolateOrigins,site-per-process'
-                ]
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-web-security",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                ],
             )
             # Create page with default timeout
             self.page = await self.browser.new_page()
@@ -200,15 +200,19 @@ class GibneyScraper:
                 )
 
             login_start_time = datetime.now(timezone.utc)
-            
+
             # Navigate to login page with extended timeout
             try:
-                await self.page.goto(LOGIN_URL, timeout=PAGE_LOAD_TIMEOUT, wait_until="domcontentloaded")
+                await self.page.goto(
+                    LOGIN_URL, timeout=PAGE_LOAD_TIMEOUT, wait_until="domcontentloaded"
+                )
             except Exception as e:
                 logger.error(f"Failed to load login page: {e}")
                 if self.sync_logger:
                     self.sync_logger.error("Failed to navigate to login page", error=e)
-                raise GibneyScrapingError(f"Unable to reach Gibney website. The site may be down or experiencing issues.")
+                raise GibneyScrapingError(
+                    f"Unable to reach Gibney website. The site may be down or experiencing issues."
+                )
 
             if self.sync_logger:
                 self.sync_logger.log_timing("Login page navigation", login_start_time)
@@ -221,14 +225,27 @@ class GibneyScraper:
             # The Gibney login page uses type-based selectors, not name attributes
             # First wait for the form to be fully loaded
             logger.debug("Waiting for login form to be visible...")
-            await self.page.wait_for_selector('input[type="text"]', state="visible", timeout=ELEMENT_TIMEOUT)
-            await self.page.wait_for_selector('input[type="password"]', state="visible", timeout=ELEMENT_TIMEOUT)
-            
+            await self.page.wait_for_selector(
+                'input[type="text"]', state="visible", timeout=ELEMENT_TIMEOUT
+            )
+            await self.page.wait_for_selector(
+                'input[type="password"]', state="visible", timeout=ELEMENT_TIMEOUT
+            )
+
+            print(f"[DEBUG] email: {email}")
+            print(f"[DEBUG] password: {password}")
+
             # Fill the form fields - use placeholder attributes as backup selectors
             logger.debug("Filling username field...")
-            await self.page.fill('input[type="text"][placeholder="Username"], input[type="text"].inputBox', email)
+            await self.page.fill(
+                'input[type="text"][placeholder="Username"], input[type="text"].inputBox',
+                email,
+            )
             logger.debug("Filling password field...")
-            await self.page.fill('input[type="password"][placeholder="Password"], input[type="password"].inputBox', password)
+            await self.page.fill(
+                'input[type="password"][placeholder="Password"], input[type="password"].inputBox',
+                password,
+            )
 
             # Submit form - try multiple selectors since the button might not have type="submit"
             logger.info("Submitting login form...")
@@ -241,8 +258,8 @@ class GibneyScraper:
                 "button.loginButton",  # Primary selector based on HTML
                 'button:has-text("Log in")',  # Text-based selector
                 'button[class*="loginButton"]',
-                'button.slds-button--brand',
-                'button.uiButton',
+                "button.slds-button--brand",
+                "button.uiButton",
                 'button[type="submit"]',  # Generic fallback
                 'button[aria-label*="Log in"]',
             ]
@@ -271,26 +288,28 @@ class GibneyScraper:
                     screenshot_path = f"debug_login_failure_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     await self.page.screenshot(path=screenshot_path)
                     logger.info(f"Saved debug screenshot to {screenshot_path}")
-                    
+
                     # Check for error messages on the page
                     error_selectors = [
-                        '.error',
+                        ".error",
                         '[class*="error"]',
                         '[role="alert"]',
-                        '.slds-text-color_error'
+                        ".slds-text-color_error",
                     ]
                     for error_sel in error_selectors:
                         try:
                             error_elem = await self.page.query_selector(error_sel)
                             if error_elem:
                                 error_text = await error_elem.text_content()
-                                logger.error(f"Found error message on page: {error_text}")
+                                logger.error(
+                                    f"Found error message on page: {error_text}"
+                                )
                                 break
                         except:
                             pass
                 except Exception as debug_error:
                     logger.error(f"Failed to capture debug info: {debug_error}")
-                
+
                 error_msg = "Could not find or click login button with any selector"
                 if self.sync_logger:
                     self.sync_logger.error(error_msg, selectors_tried=button_selectors)
@@ -304,23 +323,28 @@ class GibneyScraper:
             try:
                 # Wait for redirect with multiple strategies
                 redirect_success = False
-                
+
                 # Strategy 1: Wait for URL change away from login page
                 login_wait_start = datetime.now(timezone.utc)
                 try:
                     # Wait for navigation away from login page
                     await self.page.wait_for_function(
                         "() => !window.location.href.includes('/login')",
-                        timeout=LOGIN_REDIRECT_TIMEOUT
+                        timeout=LOGIN_REDIRECT_TIMEOUT,
                     )
                     redirect_success = True
-                    logger.debug(f"Successfully navigated away from login page to: {self.page.url}")
+                    logger.debug(
+                        f"Successfully navigated away from login page to: {self.page.url}"
+                    )
                 except Exception as e:
                     logger.debug(f"URL change wait failed: {e}")
-                    
+
                     # Strategy 2: Check if we're already on the right page or a variant
                     current_url = self.page.url
-                    if "gibney.my.site.com/s/" in current_url and "/login" not in current_url:
+                    if (
+                        "gibney.my.site.com/s/" in current_url
+                        and "/login" not in current_url
+                    ):
                         redirect_success = True
                         logger.debug(f"Already on expected page: {current_url}")
                     else:
@@ -329,29 +353,29 @@ class GibneyScraper:
                             # Try multiple post-login indicators
                             post_login_selectors = [
                                 'a:has-text("My Rentals")',
-                                'nav',
+                                "nav",
                                 '[class*="navigation"]',
                                 'a[href*="booking"]',
-                                '.slds-context-bar',
+                                ".slds-context-bar",
                                 'button:has-text("Menu")',
                             ]
-                            
+
                             for selector in post_login_selectors:
                                 try:
                                     await self.page.wait_for_selector(
-                                        selector,
-                                        timeout=5000,
-                                        state="visible"
+                                        selector, timeout=5000, state="visible"
                                     )
                                     redirect_success = True
-                                    logger.debug(f"Found post-login element: {selector}")
+                                    logger.debug(
+                                        f"Found post-login element: {selector}"
+                                    )
                                     break
                                 except:
                                     continue
-                                    
+
                         except Exception:
                             pass
-                        
+
                         # Strategy 4: Check for login form disappearance
                         if not redirect_success:
                             try:
@@ -359,17 +383,23 @@ class GibneyScraper:
                                 await self.page.wait_for_selector(
                                     'input[type="password"]',
                                     state="hidden",
-                                    timeout=5000
+                                    timeout=5000,
                                 )
                                 redirect_success = True
-                                logger.debug("Login form disappeared, assuming successful login")
+                                logger.debug(
+                                    "Login form disappeared, assuming successful login"
+                                )
                             except:
                                 pass
-                
+
                 # Log timing
-                login_wait_duration = (datetime.now(timezone.utc) - login_wait_start).total_seconds()
-                logger.debug(f"Login redirect wait took {login_wait_duration:.2f} seconds")
-                
+                login_wait_duration = (
+                    datetime.now(timezone.utc) - login_wait_start
+                ).total_seconds()
+                logger.debug(
+                    f"Login redirect wait took {login_wait_duration:.2f} seconds"
+                )
+
                 if redirect_success:
                     logger.debug("Successfully logged in")
                     if self.sync_logger:
@@ -382,14 +412,14 @@ class GibneyScraper:
                         # Look for error messages that indicate wrong credentials
                         error_messages = []
                         error_selectors = [
-                            '.error',
+                            ".error",
                             '[class*="error"]',
                             '[role="alert"]',
-                            '.slds-text-color_error',
+                            ".slds-text-color_error",
                             'div:has-text("Invalid username or password")',
-                            'div:has-text("Your login attempt has failed")'
+                            'div:has-text("Your login attempt has failed")',
                         ]
-                        
+
                         for selector in error_selectors:
                             try:
                                 error_elem = await self.page.query_selector(selector)
@@ -399,23 +429,31 @@ class GibneyScraper:
                                         error_messages.append(error_text.strip())
                             except:
                                 pass
-                        
+
                         if error_messages:
                             error_msg = f"Login failed: {'; '.join(error_messages)}"
                             logger.error(error_msg)
-                            raise GibneyScrapingError(f"Invalid credentials. Please check your Gibney username and password.")
+                            raise GibneyScrapingError(
+                                f"Invalid credentials. Please check your Gibney username and password."
+                            )
                         else:
                             # Save debug info
                             try:
                                 screenshot_path = f"debug_login_stuck_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                                 await self.page.screenshot(path=screenshot_path)
-                                logger.info(f"Saved debug screenshot to {screenshot_path}")
+                                logger.info(
+                                    f"Saved debug screenshot to {screenshot_path}"
+                                )
                             except:
                                 pass
-                            raise GibneyScrapingError("Login failed - stuck on login page. The site may have changed its login process.")
+                            raise GibneyScrapingError(
+                                "Login failed - stuck on login page. The site may have changed its login process."
+                            )
                     else:
-                        raise GibneyScrapingError(f"Login redirect failed - ended up on unexpected page: {current_url}")
-                    
+                        raise GibneyScrapingError(
+                            f"Login redirect failed - ended up on unexpected page: {current_url}"
+                        )
+
             except Exception as e:
                 if self.sync_logger:
                     self.sync_logger.error(
@@ -461,64 +499,98 @@ class GibneyScraper:
                 logger.warning(
                     "Could not find My Rentals link, navigating directly to rentals page"
                 )
-                await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT)
+                await self.page.goto(
+                    RENTALS_URL,
+                    wait_until="domcontentloaded",
+                    timeout=NAVIGATION_TIMEOUT,
+                )
                 # Give the page time to load
                 await self.page.wait_for_timeout(2000)
             else:
                 # Wait for navigation after clicking My Rentals
                 logger.debug("Waiting for navigation after clicking My Rentals...")
                 navigation_start = datetime.now(timezone.utc)
-                
+
                 try:
                     # Use a shorter timeout for initial navigation
                     SHORT_NAV_TIMEOUT = 10000  # 10 seconds
-                    
+
                     # Wait for any navigation to occur
-                    await self.page.wait_for_load_state("domcontentloaded", timeout=SHORT_NAV_TIMEOUT)
-                    
+                    await self.page.wait_for_load_state(
+                        "domcontentloaded", timeout=SHORT_NAV_TIMEOUT
+                    )
+
                     # Check current URL immediately
                     current_url = self.page.url
                     logger.debug(f"Navigated to: {current_url}")
-                    
+
                     # Check if we're on any booking-related page
-                    if "booking" in current_url or "rental" in current_url or "/s/" in current_url:
+                    if (
+                        "booking" in current_url
+                        or "rental" in current_url
+                        or "/s/" in current_url
+                    ):
                         # We're on a valid page, wait briefly for content to load
                         try:
                             # Try to wait for table or other booking indicators
                             await self.page.wait_for_selector(
                                 "table, [class*='booking'], [class*='rental']",
                                 timeout=5000,
-                                state="visible"
+                                state="visible",
                             )
                             logger.info("Successfully navigated to booking page")
                         except:
                             # Even if selector fails, we're on the right page
-                            logger.debug("On booking page but couldn't find specific elements")
-                        
-                        navigation_duration = (datetime.now(timezone.utc) - navigation_start).total_seconds()
-                        logger.debug(f"Navigation completed in {navigation_duration:.2f} seconds")
+                            logger.debug(
+                                "On booking page but couldn't find specific elements"
+                            )
+
+                        navigation_duration = (
+                            datetime.now(timezone.utc) - navigation_start
+                        ).total_seconds()
+                        logger.debug(
+                            f"Navigation completed in {navigation_duration:.2f} seconds"
+                        )
                     else:
                         # We're not on a booking page, try direct navigation
-                        logger.warning(f"Unexpected page after My Rentals click: {current_url}")
+                        logger.warning(
+                            f"Unexpected page after My Rentals click: {current_url}"
+                        )
                         logger.info("Navigating directly to rentals page...")
-                        await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
-                        
+                        await self.page.goto(
+                            RENTALS_URL,
+                            wait_until="domcontentloaded",
+                            timeout=PAGE_LOAD_TIMEOUT,
+                        )
+
                 except Exception as nav_error:
                     # Navigation failed completely
                     current_url = self.page.url
-                    logger.warning(f"Navigation issue detected. Current URL: {current_url}, Error: {nav_error}")
-                    
+                    logger.warning(
+                        f"Navigation issue detected. Current URL: {current_url}, Error: {nav_error}"
+                    )
+
                     # If we're already on a booking page despite the error, continue
                     if "booking" in current_url or "rental" in current_url:
-                        logger.info("Already on a booking-related page despite navigation error, proceeding...")
+                        logger.info(
+                            "Already on a booking-related page despite navigation error, proceeding..."
+                        )
                     else:
                         # Last resort: direct navigation
-                        logger.warning("Attempting direct navigation to rentals page...")
+                        logger.warning(
+                            "Attempting direct navigation to rentals page..."
+                        )
                         try:
-                            await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+                            await self.page.goto(
+                                RENTALS_URL,
+                                wait_until="domcontentloaded",
+                                timeout=PAGE_LOAD_TIMEOUT,
+                            )
                         except Exception as goto_error:
                             logger.error(f"Direct navigation also failed: {goto_error}")
-                            raise GibneyScrapingError("Unable to navigate to rentals page")
+                            raise GibneyScrapingError(
+                                "Unable to navigate to rentals page"
+                            )
 
             logger.info(f"Login successful for user: {email}")
 
@@ -560,18 +632,24 @@ class GibneyScraper:
                     self.sync_logger.log_scraper_event(
                         "navigation", "Navigating to rentals page", url=RENTALS_URL
                     )
-                await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT)
-                
+                await self.page.goto(
+                    RENTALS_URL,
+                    wait_until="domcontentloaded",
+                    timeout=NAVIGATION_TIMEOUT,
+                )
+
                 # Wait for the page to be fully loaded
                 try:
-                    await self.page.wait_for_load_state("networkidle", timeout=NETWORK_IDLE_TIMEOUT)
+                    await self.page.wait_for_load_state(
+                        "networkidle", timeout=NETWORK_IDLE_TIMEOUT
+                    )
                 except Exception as e:
                     logger.debug(f"Network idle timeout (non-critical): {e}")
 
             # Wait for page to load and check what we're actually on
             current_url = self.page.url
             logger.info(f"Current URL before waiting for table: {current_url}")
-            
+
             # Wait for page to load with multiple selector strategies
             logger.debug("Waiting for rental table to load")
             table_selectors = [
@@ -581,7 +659,7 @@ class GibneyScraper:
                 "table[class*='booking']",
                 "table",  # Generic fallback
             ]
-            
+
             table_found = False
             for selector in table_selectors:
                 try:
@@ -594,10 +672,10 @@ class GibneyScraper:
                     break
                 except Exception:
                     continue
-            
+
             if not table_found:
                 logger.error("Failed to find any suitable table selector")
-                
+
                 # Take screenshot for debugging
                 try:
                     screenshot_path = f"debug_rentals_page_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
@@ -605,7 +683,7 @@ class GibneyScraper:
                     logger.info(f"Saved debug screenshot to {screenshot_path}")
                 except Exception as screenshot_error:
                     logger.error(f"Failed to save screenshot: {screenshot_error}")
-                
+
                 # Save HTML for debugging
                 try:
                     html_content = await self.page.content()
@@ -613,7 +691,7 @@ class GibneyScraper:
                     with open(html_path, "w", encoding="utf-8") as f:
                         f.write(html_content)
                     logger.info(f"Saved debug HTML to {html_path}")
-                    
+
                     # Log what we can see on the page
                     soup = BeautifulSoup(html_content, "lxml")
                     tables = soup.find_all("table")
@@ -621,12 +699,16 @@ class GibneyScraper:
                     for i, table in enumerate(tables[:5]):  # Log first 5 tables
                         if isinstance(table, Tag):
                             classes = table.get("class")
-                            logger.info(f"  Table {i}: classes={classes if classes else 'No classes'}")
+                            logger.info(
+                                f"  Table {i}: classes={classes if classes else 'No classes'}"
+                            )
                 except Exception as html_error:
                     logger.error(f"Failed to save debug HTML: {html_error}")
-                
+
                 # Raise a more descriptive error
-                raise GibneyScrapingError(f"Could not find rental table on page. Current URL: {current_url}")
+                raise GibneyScrapingError(
+                    f"Could not find rental table on page. Current URL: {current_url}"
+                )
 
             all_rentals = []
             page_number = 1
@@ -1001,7 +1083,7 @@ async def scrape_user_bookings(
                             changed = True
                             setattr(existing_booking, key, value)
 
-                    setattr(existing_booking, "last_seen", datetime.utcnow())
+                    setattr(existing_booking, "last_seen", datetime.now(timezone.utc))
                     updated_bookings.append(existing_booking)
 
                     if changed:
@@ -1033,7 +1115,7 @@ async def scrape_user_bookings(
                         status=booking_data["status"],
                         price=booking_data["price"],
                         record_url=booking_data["record_url"],
-                        last_seen=datetime.utcnow(),
+                        last_seen=datetime.now(timezone.utc),
                     )
                     db.add(new_booking)
                     updated_bookings.append(new_booking)

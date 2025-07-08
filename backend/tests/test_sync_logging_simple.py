@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -45,7 +45,7 @@ def test_sync_job(test_db, test_user):
         user_id=test_user.id,
         status="running",
         triggered_manually=True,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
     test_db.add(job)
     test_db.commit()
@@ -63,7 +63,7 @@ class TestSyncJobLoggerSimple:
             user_id=test_user.id,
             status="running",
             triggered_manually=True,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
         test_db.add(job)
         test_db.commit()
@@ -85,7 +85,7 @@ class TestSyncJobLoggerSimple:
         # Update job status
         setattr(job, "status", "completed")
         setattr(job, "bookings_synced", 4)
-        setattr(job, "completed_at", datetime.utcnow())
+        setattr(job, "completed_at", datetime.now(timezone.utc))
         test_db.commit()
 
         # Verify logs
@@ -126,7 +126,7 @@ class TestSyncJobLoggerSimple:
             user_id=test_user.id,
             status="running",
             triggered_manually=True,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
         test_db.add(job)
         test_db.commit()
@@ -143,7 +143,7 @@ class TestSyncJobLoggerSimple:
         # Update job status
         setattr(job, "status", "failed")
         setattr(job, "error_message", "Invalid credentials")
-        setattr(job, "completed_at", datetime.utcnow())
+        setattr(job, "completed_at", datetime.now(timezone.utc))
         test_db.commit()
 
         # Verify logs

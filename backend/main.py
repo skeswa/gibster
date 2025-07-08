@@ -1,6 +1,6 @@
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, cast
 from uuid import UUID
 
@@ -130,8 +130,8 @@ def run_sync_task_in_background(user_id: str, job_id: str):
             if job:
                 setattr(job, "status", "failed")
                 setattr(job, "error_message", f"Background task error: {str(e)}")
-                setattr(job, "completed_at", datetime.utcnow())
-                setattr(job, "last_updated_at", datetime.utcnow())
+                setattr(job, "completed_at", datetime.now(timezone.utc))
+                setattr(job, "last_updated_at", datetime.now(timezone.utc))
                 db.commit()
         except Exception as db_error:
             logger.error(f"Failed to update job status: {db_error}")
@@ -398,7 +398,7 @@ async def update_credentials(
         # Update user attributes
         setattr(current_user, "gibney_email", encrypted_email)
         setattr(current_user, "gibney_password", encrypted_password)
-        setattr(current_user, "updated_at", datetime.utcnow())
+        setattr(current_user, "updated_at", datetime.now(timezone.utc))
 
         db.commit()
 
@@ -561,7 +561,7 @@ async def sync_bookings(
                 progress="Failed to start sync",
                 error_message=f"Failed to start sync: {str(e)}",
                 triggered_manually=True,
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(timezone.utc),
             )
             db.add(failed_job)
             db.commit()
@@ -606,7 +606,7 @@ async def get_sync_status(
                 progress="No sync has been performed yet",
                 bookings_synced=0,
                 error_message=None,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 completed_at=None,
                 triggered_manually=False,
             )

@@ -2,7 +2,7 @@
 Tests for sync functionality to ensure jobs don't get stuck.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -46,8 +46,8 @@ class TestSyncJobManagement:
             user_id=test_user.id,
             status="running",
             progress="Stuck in processing...",
-            started_at=datetime.utcnow() - timedelta(minutes=15),
-            last_updated_at=datetime.utcnow() - timedelta(minutes=12),
+            started_at=datetime.now(timezone.utc) - timedelta(minutes=15),
+            last_updated_at=datetime.now(timezone.utc) - timedelta(minutes=12),
         )
         test_db.add(stale_job)
         test_db.commit()
@@ -68,8 +68,8 @@ class TestSyncJobManagement:
             user_id=test_user.id,
             status="running",
             progress="Still processing...",
-            started_at=datetime.utcnow() - timedelta(minutes=5),
-            last_updated_at=datetime.utcnow() - timedelta(minutes=3),
+            started_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+            last_updated_at=datetime.now(timezone.utc) - timedelta(minutes=3),
         )
         test_db.add(active_job)
         test_db.commit()
@@ -92,8 +92,8 @@ class TestSyncJobManagement:
                 user_id=test_user.id,
                 status="completed",
                 progress="Old sync completed",
-                started_at=datetime.utcnow() - timedelta(days=35 + i),
-                completed_at=datetime.utcnow() - timedelta(days=35 + i),
+                started_at=datetime.now(timezone.utc) - timedelta(days=35 + i),
+                completed_at=datetime.now(timezone.utc) - timedelta(days=35 + i),
             )
             test_db.add(old_job)
             test_db.flush()
@@ -104,8 +104,8 @@ class TestSyncJobManagement:
             user_id=test_user.id,
             status="completed",
             progress="Recent sync completed",
-            started_at=datetime.utcnow() - timedelta(days=5),
-            completed_at=datetime.utcnow() - timedelta(days=5),
+            started_at=datetime.now(timezone.utc) - timedelta(days=5),
+            completed_at=datetime.now(timezone.utc) - timedelta(days=5),
         )
         test_db.add(recent_job)
         test_db.commit()
@@ -146,8 +146,8 @@ class TestSyncJobManagement:
             user_id=test_user.id,
             status="running",
             progress="Currently syncing...",
-            started_at=datetime.utcnow(),
-            last_updated_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
+            last_updated_at=datetime.now(timezone.utc),
         )
         test_db.add(running_job)
         test_db.commit()
@@ -172,8 +172,8 @@ class TestSyncJobManagement:
             user_id=test_user.id,
             status="completed",
             progress="Sync completed",
-            started_at=datetime.utcnow() - timedelta(hours=1),
-            completed_at=datetime.utcnow() - timedelta(minutes=30),
+            started_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            completed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
         )
         test_db.add(completed_job)
         test_db.commit()
@@ -198,8 +198,8 @@ class TestSyncJobManagement:
             status="failed",
             progress="Sync failed",
             error_message="Test error",
-            started_at=datetime.utcnow() - timedelta(hours=1),
-            completed_at=datetime.utcnow() - timedelta(minutes=30),
+            started_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            completed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
         )
         test_db.add(failed_job)
         test_db.commit()

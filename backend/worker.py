@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
 from uuid import UUID
 
@@ -145,7 +145,7 @@ async def sync_scrape_user_with_job_tracking(
                         progress="Failed to initialize sync",
                         error_message="Failed to create sync job. Please try again.",
                         triggered_manually=True,
-                        completed_at=datetime.utcnow(),
+                        completed_at=datetime.now(timezone.utc),
                     )
                     db.add(job)
                     db.commit()
@@ -163,7 +163,7 @@ async def sync_scrape_user_with_job_tracking(
         try:
             setattr(job, "status", "running")
             setattr(job, "progress", "Connecting to Gibney...")
-            setattr(job, "last_updated_at", datetime.utcnow())
+            setattr(job, "last_updated_at", datetime.now(timezone.utc))
             db.commit()
             sync_logger.info("Job status updated to running")
         except Exception as db_error:
@@ -178,7 +178,7 @@ async def sync_scrape_user_with_job_tracking(
         # Update progress with error handling
         try:
             setattr(job, "progress", "Logging into Gibney...")
-            setattr(job, "last_updated_at", datetime.utcnow())
+            setattr(job, "last_updated_at", datetime.now(timezone.utc))
             db.commit()
             sync_logger.info("Starting login process")
         except Exception as db_error:
@@ -188,7 +188,7 @@ async def sync_scrape_user_with_job_tracking(
         # Perform the actual scraping
         logger.debug("Starting scraper execution")
         sync_logger.info("Initiating scraper for Gibney bookings")
-        scraper_start_time = datetime.utcnow()
+        scraper_start_time = datetime.now(timezone.utc)
 
         # Pass sync_logger to scraper
         updated_bookings = await scrape_user_bookings(db, user, sync_logger)
@@ -201,7 +201,7 @@ async def sync_scrape_user_with_job_tracking(
         try:
             setattr(job, "progress", f"Processing {len(updated_bookings)} bookings...")
             setattr(job, "bookings_synced", len(updated_bookings))
-            setattr(job, "last_updated_at", datetime.utcnow())
+            setattr(job, "last_updated_at", datetime.now(timezone.utc))
             db.commit()
             sync_logger.info(f"Found {len(updated_bookings)} bookings to process")
         except Exception as db_error:
@@ -210,7 +210,7 @@ async def sync_scrape_user_with_job_tracking(
 
         # Update user's last sync time
         logger.debug("Updating user's last sync time")
-        setattr(user, "last_sync_at", datetime.utcnow())
+        setattr(user, "last_sync_at", datetime.now(timezone.utc))
         db.commit()
         sync_logger.info("Updated user's last sync timestamp")
 
@@ -220,8 +220,8 @@ async def sync_scrape_user_with_job_tracking(
             setattr(
                 job, "progress", f"Successfully synced {len(updated_bookings)} bookings"
             )
-            setattr(job, "completed_at", datetime.utcnow())
-            setattr(job, "last_updated_at", datetime.utcnow())
+            setattr(job, "completed_at", datetime.now(timezone.utc))
+            setattr(job, "last_updated_at", datetime.now(timezone.utc))
             db.commit()
 
             # Note: The sync_logger.log_sync_summary is already called in scraper
@@ -326,8 +326,8 @@ async def sync_scrape_user_with_job_tracking(
                 setattr(job, "status", "failed")
                 setattr(job, "error_message", user_friendly_error)
                 setattr(job, "progress", f"Sync failed")
-                setattr(job, "completed_at", datetime.utcnow())
-                setattr(job, "last_updated_at", datetime.utcnow())
+                setattr(job, "completed_at", datetime.now(timezone.utc))
+                setattr(job, "last_updated_at", datetime.now(timezone.utc))
                 db.commit()
 
                 if sync_logger:
@@ -346,7 +346,7 @@ async def sync_scrape_user_with_job_tracking(
                     if job_update:
                         job_update.status = "failed"
                         job_update.error_message = user_friendly_error
-                        job_update.completed_at = datetime.utcnow()
+                        job_update.completed_at = datetime.now(timezone.utc)
                         db.commit()
                         logger.info("Successfully updated job status on retry")
                 except:
@@ -519,7 +519,7 @@ if USE_CELERY and celery_app:
         logger.info("Rescheduling next automatic sync")
         try:
             # Schedule next sync in 4 hours
-            next_run_time = datetime.utcnow() + timedelta(hours=4)
+            next_run_time = datetime.now(timezone.utc) + timedelta(hours=4)
 
             # This is a placeholder - in a real implementation you'd use a scheduler
             # like Celery Beat or APScheduler
@@ -584,7 +584,7 @@ def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
     global _last_stale_check_time
     
     # Rate limit the checks to avoid excessive database queries
-    current_time = datetime.utcnow()
+    current_time = datetime.now(timezone.utc)
     if _last_stale_check_time is not None:
         time_since_last_check = (current_time - _last_stale_check_time).total_seconds()
         if time_since_last_check < _stale_check_interval:
@@ -595,7 +595,7 @@ def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
     logger.debug(f"Checking for stale sync jobs (timeout: {timeout_minutes} minutes)")
 
     try:
-        cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
 
         # Find jobs that are still running but haven't been updated recently
         stale_jobs = (
@@ -616,8 +616,8 @@ def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
                     f"Sync timed out after {timeout_minutes} minutes",
                 )
                 setattr(job, "progress", "Sync failed due to timeout")
-                setattr(job, "completed_at", datetime.utcnow())
-                setattr(job, "last_updated_at", datetime.utcnow())
+                setattr(job, "completed_at", datetime.now(timezone.utc))
+                setattr(job, "last_updated_at", datetime.now(timezone.utc))
 
             db.commit()
             logger.info(f"Marked {len(stale_jobs)} stale jobs as failed")
@@ -637,7 +637,7 @@ def cleanup_old_sync_jobs(db: Session, days_to_keep: int = 30):
     logger.info(f"Cleaning up sync jobs older than {days_to_keep} days")
 
     try:
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
 
         # Delete old completed or failed jobs
         old_jobs = (
