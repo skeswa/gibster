@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - ../../base
+- secrets.yaml
 
 patchesStrategicMerge:
 - deployment-patches.yaml
@@ -24,15 +25,6 @@ configMapGenerator:
   behavior: merge
   literals:
   - environment=development
-
-secretGenerator:
-- name: gibster-secrets
-  behavior: merge
-  literals:
-  - database-url=postgresql://gibster:devpassword@gibster-postgres:5432/gibster
-  - postgres-password=devpassword
-  - secret-key=development-secret-key-change-in-production
-  - encryption-key=development-encryption-key-change-in-production
 
 replicas:
 - name: gibster-backend

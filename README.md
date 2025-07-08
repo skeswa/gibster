@@ -8,37 +8,6 @@ For dancers who frequently book rehearsal space at Gibney, keeping track of upco
 
 Gibster solves this by providing a "set it and forget it" service. You provide your Gibney login credentials once, and Gibster periodically scrapes your bookings, making them available via a standard calendar subscription link (iCal). This allows you to view all your bookings directly in your preferred calendar app, providing a consolidated and user-friendly view of your schedule.
 
-## How It Works
-
-```mermaid
-graph TD
-    A[You provide Gibney credentials] --> B[Gibster securely stores them]
-    B --> C[Background worker scrapes bookings every 2 hours]
-    C --> D[Bookings converted to calendar events]
-    D --> E[Your calendar app syncs automatically]
-    E --> F[See Gibney bookings in Google Calendar, Apple Calendar, etc.]
-```
-
-## Architecture
-
-The system consists of four main components:
-
-1. **Frontend (React)** - User interface for account management and viewing bookings
-2. **Backend API (FastAPI)** - REST API for user management and calendar generation
-3. **Scraper Worker (Celery)** - Background service for scraping Gibney bookings
-4. **Database (PostgreSQL/SQLite)** - Stores user data and scraped bookings
-
-```mermaid
-graph TD
-    A[User Browser] --> B[React Frontend]
-    B --> C[FastAPI Backend]
-    C --> D[PostgreSQL Database]
-    C --> E[Calendar Feed]
-    F[Celery Worker] --> G[Gibney Website]
-    F --> D
-    H[Calendar App] --> E
-```
-
 ## Features
 
 - **Secure credential storage** - Gibney passwords encrypted at rest
@@ -386,44 +355,23 @@ Documentation: http://localhost:8000/docs
 
 ## Deployment
 
-### Production with Kubernetes
+Gibster uses GitHub Actions for automated CI/CD deployment to Kubernetes. 
 
-Gibster is designed to run on Kubernetes (K3s) with automated CI/CD through GitHub Actions.
+For detailed deployment instructions, see [**docs/deploy.md**](docs/deploy.md).
 
-#### Quick Deploy to K3s
+### Quick Start
 
-```bash
-# Apply development configuration
-kubectl apply -k k8s/overlays/development
+1. **Configure GitHub Secrets** in your repository settings
+2. **Push to main branch** to trigger automatic deployment
+3. **Monitor deployment** via GitHub Actions
 
-# For production, configure GitHub Actions secrets:
-# - KUBE_CONFIG: Base64 encoded kubeconfig
-# - DATABASE_URL, POSTGRES_PASSWORD, SECRET_KEY, ENCRYPTION_KEY
-# Then push to main branch to trigger deployment
-```
-
-#### Manual Production Deploy
-
-```bash
-# Create secrets
-kubectl create secret generic gibster-secrets \
-  --from-literal=database-url="postgresql://gibster:SECURE_PASS@gibster-postgres:5432/gibster" \
-  --from-literal=postgres-password="SECURE_PASS" \
-  --from-literal=secret-key="$(openssl rand -hex 32)" \
-  --from-literal=encryption-key="$(openssl rand -hex 32)"
-
-# Apply production configuration
-kubectl apply -k k8s/overlays/production
-```
-
-See [k8s/README.md](k8s/README.md) for detailed deployment instructions.
-
-**Security Checklist for Production:**
-- ✅ Generated secure `SECRET_KEY` and `ENCRYPTION_KEY`
-- ✅ Set strong database password
-- ✅ Configure TLS certificate for ingress
-- ✅ Set up GitHub Actions secrets
-- ✅ Configure proper resource limits
+The deployment guide covers:
+- GitHub repository setup and required secrets
+- CI/CD pipeline configuration
+- Manual deployment options
+- Monitoring and troubleshooting
+- Security best practices
+- Scaling configuration
 
 ## Troubleshooting
 
@@ -540,17 +488,6 @@ kubectl exec deployment/postgres -- pg_dump -U postgres gibster > backup.sql
 kubectl top pods
 ```
 
-### SSL Setup with Caddy
-
-```bash
-# Caddyfile
-yourdomain.com {
-    reverse_proxy localhost:8000
-}
-
-caddy run  # Automatic SSL
-```
-
 ### Development Workflow
 
 ```bash
@@ -566,9 +503,6 @@ python run_tests.py --verbose --coverage
 
 # Frontend development
 cd frontend && npm run dev  # Port 3000 with API proxy
-
-# For production deployment
-kubectl apply -k k8s/overlays/production
 ```
 
 **⚠️ Disclaimer:** Not affiliated with Gibney Dance Center. Use responsibly.

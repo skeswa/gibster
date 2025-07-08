@@ -1,0 +1,12 @@
+# Private deployment documentation
+rhuidean.md
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

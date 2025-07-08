@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
 from backend.database import Base
 from backend.models import SyncJob, SyncJobLog, User
 from backend.sync_logger import SyncJobLogger
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 
 
 @pytest.fixture

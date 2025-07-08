@@ -7,7 +7,6 @@ resources:
 - frontend-deployment.yaml
 - celery-deployment.yaml
 - configmap.yaml
-- secrets.yaml
 
 commonLabels:
   app: gibster
