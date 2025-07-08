@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
           ? `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`
           : 'http://localhost:8000/api/:path*',
       },
+      {
+        source: '/calendar/:path*',
+        destination: process.env.NEXT_PUBLIC_API_URL 
+          ? `${process.env.NEXT_PUBLIC_API_URL}/calendar/:path*`
+          : 'http://localhost:8000/calendar/:path*',
+      },
     ];
   },
   eslint: {

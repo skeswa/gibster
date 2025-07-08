@@ -1,3 +1,4 @@
+import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -424,11 +425,22 @@ async def get_calendar_url(
     logger.debug(f"Generating calendar URL for user: {current_user.email}")
 
     try:
-        base_url = str(request.base_url).rstrip("/")
+        # Check if FRONTEND_BASE_URL is configured
+        frontend_base_url = os.getenv("FRONTEND_BASE_URL")
+        
+        if frontend_base_url:
+            # Use frontend URL if configured
+            base_url = frontend_base_url.rstrip("/")
+            logger.debug(f"Using frontend base URL: {base_url}")
+        else:
+            # Fall back to request base URL (current behavior)
+            base_url = str(request.base_url).rstrip("/")
+            logger.debug(f"Using request base URL: {base_url}")
+        
         calendar_uuid = cast(UUID, current_user.calendar_uuid)
         calendar_url = f"{base_url}/calendar/{calendar_uuid}.ics"
 
-        logger.debug(f"Calendar URL generated for user: {current_user.email}")
+        logger.debug(f"Calendar URL generated for user: {current_user.email} - {calendar_url}")
         return CalendarUrl(calendar_url=calendar_url, calendar_uuid=calendar_uuid)
 
     except Exception as e:
