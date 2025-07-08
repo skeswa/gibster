@@ -4,505 +4,81 @@ A service to synchronize Gibney dance space bookings with your personal calendar
 
 ## What is Gibster?
 
-For dancers who frequently book rehearsal space at Gibney, keeping track of upcoming reservations can be cumbersome. The current booking portal, while functional, presents bookings in a simple list format that is difficult to parse at a glance and does not integrate with personal calendar applications.
-
-Gibster solves this by providing a "set it and forget it" service. You provide your Gibney login credentials once, and Gibster periodically scrapes your bookings, making them available via a standard calendar subscription link (iCal). This allows you to view all your bookings directly in your preferred calendar app, providing a consolidated and user-friendly view of your schedule.
+Gibster provides automated calendar synchronization for dancers who book rehearsal space at Gibney. Simply connect your Gibney account once, and all your bookings will automatically appear in your preferred calendar app (Google Calendar, Apple Calendar, Outlook, etc.).
 
 ## Features
 
-- **Secure credential storage** - Gibney passwords encrypted at rest
-- **Automatic syncing** - Bookings updated every 2 hours
-- **Live calendar subscription** - One-click add to Google Calendar, Apple Calendar, Outlook
-- **Universal compatibility** - Standard iCal format works with any calendar app
-- **Auto-updating calendar** - Changes in Gibney automatically appear in your calendar
-- **Web dashboard** - Manage settings and view sync status
-- **Manual sync** - Trigger immediate updates when needed
+- 🔒 **Secure** - Credentials encrypted at rest
+- 🔄 **Automatic** - Syncs every 2 hours
+- 📅 **Universal** - Works with any calendar app
+- ⚡ **Real-time** - Manual sync on demand
+- 🎯 **Simple** - Set it and forget it
 
 ## Quick Start
 
-### Local Development (Recommended)
-
 ```bash
+# Clone and setup
 git clone <your-repo-url>
 cd gibster
-python dev_setup.py  # Automated Docker-free setup
-# Edit .env with your Gibney credentials (created from .env.example)
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-python run_server.py
+python scripts/dev_setup.py
+
+# Configure credentials
+# Edit backend/.env with your Gibney login
+
+# Start the server
+source venv/bin/activate
+python scripts/run_server.py
 ```
 
-Access at http://localhost:8000
+Visit http://localhost:8000 to get started.
 
-The setup script automatically:
-- Creates virtual environment
-- Installs all Python dependencies
-- Installs Playwright browser
-- Creates SQLite database
-- Creates `.env` file from `.env.example` template
-- Checks for optional services (Redis)
+For detailed setup instructions, see the [Quick Start Guide](docs/quickstart.md).
 
-**Important:** After setup, edit `.env` and add your actual Gibney credentials and generate secure keys for production use.
+## Documentation
 
-### Using Kubernetes (Production)
+- 📚 [Quick Start Guide](docs/quickstart.md) - Get up and running quickly
+- 🛠️ [Development Guide](docs/development.md) - Detailed development setup
+- 🏗️ [Architecture Overview](docs/architecture.md) - System design and technical details
+- 🧪 [Testing Guide](docs/testing.md) - Running and writing tests
+- 🚀 [Deployment Guide](docs/deployment.md) - Production deployment with Kubernetes
+- 📋 [Requirements Document](docs/requirements.md) - Complete functional and non-functional requirements
 
-```bash
-git clone <your-repo-url>
-cd gibster
+## Tech Stack
 
-# For local K3s development
-kubectl apply -k k8s/overlays/development
-
-# Production deployment is automated via GitHub Actions
-# See k8s/README.md for detailed instructions
-```
-
-**Note:** The Kubernetes setup uses PostgreSQL StatefulSet and Redis deployment. For local development without Kubernetes, use the dev_setup.py script which uses SQLite and runs background tasks synchronously.
-
-## Usage
-
-1. **Register** at http://localhost:8000
-2. **Add Gibney credentials** in Settings
-3. **Subscribe to your calendar:**
-   - From the dashboard, click the quick-add button for your calendar app
-   - Or copy the calendar URL and add it manually
-
-### Calendar Subscription (Automatic Updates)
-
-Gibster provides a live calendar feed that automatically syncs with your calendar app:
-
-#### Quick Add (One-Click)
-- **Google Calendar**: Click "Add to Google Calendar" button
-- **Apple Calendar**: Click "Add to Apple Calendar" button  
-- **Outlook**: Click "Add to Outlook" button
-
-#### Manual Subscription
-If the quick-add buttons don't work, copy your calendar URL and:
-
-**Google Calendar:**
-1. Open Google Calendar → Settings → Add calendar → From URL
-2. Paste your calendar URL
-3. Click "Add calendar"
-
-**Apple Calendar:**
-1. File → New Calendar Subscription
-2. Paste your calendar URL
-3. Choose update frequency (we recommend every 2 hours)
-
-**Outlook.com:**
-1. Calendar → Add calendar → Subscribe from web
-2. Paste your calendar URL
-3. Give it a name like "Gibney Bookings"
-
-**Other Apps:** Most calendar apps support subscribing via URL. Look for options like:
-- "Subscribe to calendar"
-- "Add calendar from URL"
-- "Add web calendar"
-
-💡 **Note**: Your calendar will automatically update when your Gibney bookings change. Most apps check for updates every 2-24 hours.
-
-## Development
-
-### Running Tests
-
-The test runner supports both backend (Python) and frontend (JavaScript/TypeScript) tests with **type checking enabled by default**:
-
-```bash
-# Activate virtual environment first
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Run ALL tests (backend + frontend) with type checking and coverage
-python run_tests.py --coverage
-
-# Run only backend tests with type checking
-python run_tests.py --backend-only --coverage
-
-# Run only frontend tests with type checking
-python run_tests.py --frontend-only --coverage
-
-# Skip type checking (tests only)
-python run_tests.py --skip-type-check
-
-# Run only type checking (no tests)
-python run_tests.py --type-check-only
-
-# Run specific backend test types
-python run_tests.py --backend-only --type unit
-python run_tests.py --backend-only --type integration
-
-# Run with verbose output
-python run_tests.py --verbose
-
-# Using pytest directly (backend only - no type checking)
-pytest -v --cov=backend backend
-```
-
-**Type Checking:**
-- **Backend**: Uses `mypy` for Python type checking
-- **Frontend**: Uses TypeScript compiler (`tsc`) for type checking
-- Type checking runs automatically before tests (unless skipped)
-- Type errors will prevent tests from running
-
-The test runner automatically detects and runs:
-- **Type checking**: mypy (Python) and tsc (TypeScript)
-- **Backend tests**: Python tests using pytest
-- **Frontend tests**: React component tests using Jest + Testing Library
-
-**Coverage Reports:**
-- Backend: `htmlcov/index.html`
-- Frontend: `frontend/coverage/lcov-report/index.html`
-
-### Frontend Development
-
-The frontend has been migrated from Create React App to **Next.js with TypeScript** for improved performance, better developer experience, and modern tooling.
-
-```bash
-cd frontend
-npm install
-npm run dev        # Start development server (Next.js)
-npm run build      # Build for production
-npm run start      # Start production server
-npm test           # Run component tests
-npm run test:watch # Run tests in watch mode
-npm run lint       # Run ESLint
-npm run type-check # TypeScript type checking
-```
-
-Frontend available at http://localhost:3000 with API proxy to backend.
-
-**Key Features of the Next.js Migration:**
-- **TypeScript Support**: Full type safety and IntelliSense
-- **Modern Architecture**: App Router with server and client components
-- **Performance**: Automatic code splitting and optimization
-- **Testing**: Jest with Testing Library for component testing
-- **Development**: Hot reload and enhanced debugging
-
-### Frontend Architecture
-
-- **Framework**: Next.js 15 with App Router
-- **Language**: TypeScript with strict type checking
-- **Styling**: CSS modules and global styles
-- **Routing**: React Router DOM (maintained for SPA behavior)
-- **Testing**: Jest + Testing Library + TypeScript
-- **Build**: Next.js optimized bundling
-
-### Component Structure
-
-```
-frontend/
-├── src/
-│   ├── app/                 # Next.js App Router
-│   │   ├── [[...slug]]/     # Catch-all route for SPA
-│   │   │   ├── page.tsx     # Route handler
-│   │   │   └── client.tsx   # Client-side app wrapper
-│   │   └── layout.tsx       # Root layout
-│   ├── components/          # React components (TypeScript)
-│   │   ├── Header.tsx
-│   │   ├── Login.tsx
-│   │   ├── Register.tsx
-│   │   ├── Dashboard.tsx
-│   │   └── Credentials.tsx
-│   ├── __tests__/           # Component tests
-│   │   ├── Header.test.tsx
-│   │   └── Login.test.tsx
-│   ├── App.tsx              # Main application
-│   ├── App.css             # Application styles
-│   └── index.css           # Global styles
-├── jest.config.js           # Test configuration
-├── jest.setup.js            # Test setup
-├── jest-setup.d.ts          # Jest type declarations
-├── next.config.ts           # Next.js configuration
-├── tsconfig.json            # TypeScript configuration
-└── package.json             # Dependencies and scripts
-```
-
-### Running Tests (Frontend)
-
-```bash
-cd frontend
-
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run TypeScript checks
-npm run type-check
-```
-
-**Test Coverage**: Component tests verify:
-- Component rendering and props
-- User interactions and form submissions
-- API integration mocking
-- Error handling and loading states
-
-### Test Scraper
-
-```bash
-# Set credentials in backend/.env
-echo "GIBNEY_EMAIL=your-email@example.com" >> backend/.env
-echo "GIBNEY_PASSWORD=your-password" >> backend/.env
-
-python scripts/test_scraper.py
-```
-
-## Configuration
-
-### Environment Variables
-
-Environment variables are now split between backend and frontend:
-
-#### Backend Configuration
-
-Copy `backend/.env.example` to `backend/.env` and customize the values:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-**Required Backend Variables:**
-
-- **`SECRET_KEY`** - JWT signing key (generate with `openssl rand -hex 32`)
-- **`ENCRYPTION_KEY`** - Credential encryption key (generate with `openssl rand -hex 32`)
-
-#### Database Configuration
-
-**Local Development (default):**
-- Uses SQLite database (`backend/gibster_dev.db`)
-- No additional configuration needed
-
-**Production:**
-```bash
-DATABASE_URL=postgresql://username:password@localhost:5432/gibster
-```
-
-#### Background Tasks
-
-**Local Development (default):**
-```bash
-USE_CELERY=false  # Tasks run synchronously
-```
-
-**Production with Redis:**
-```bash
-USE_CELERY=true
-REDIS_URL=redis://localhost:6379/0
-```
-
-#### Frontend Configuration
-
-Copy `frontend/.env.example` to `frontend/.env.local` and customize the values:
-
-```bash
-cp frontend/.env.example frontend/.env.local
-```
-
-**Frontend Variables:**
-
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000  # API backend URL for client-side
-```
-
-Note: 
-- Next.js uses `.env.local` for local environment variables
-- Variables must be prefixed with `NEXT_PUBLIC_` to be accessible in the browser
-
-#### Server Configuration
-
-```bash
-APP_HOST=127.0.0.1  # Server host
-APP_PORT=8000       # Server port  
-APP_RELOAD=true     # Auto-reload for development
-```
-
-#### Security Key Generation
-
-Generate secure keys for production:
-
-```bash
-# Generate SECRET_KEY
-openssl rand -hex 32
-
-# Generate ENCRYPTION_KEY  
-openssl rand -hex 32
-```
-
-### Complete .env.example
-
-The project includes a comprehensive `.env.example` file with all available configuration options and detailed comments. Key sections include:
-
-- **Gibney Credentials** - Your login information
-- **Security Keys** - JWT and encryption keys
-- **Database Configuration** - SQLite vs PostgreSQL options
-- **Background Tasks** - Celery/Redis settings
-- **Server Configuration** - Host, port, and development settings
-- **Optional Production Settings** - Logging, CORS, etc.
-
-## API Reference
-
-- `POST /api/v1/auth/register` - Create account
-- `POST /api/v1/auth/token` - Login
-- `PUT /api/v1/user/credentials` - Update Gibney credentials
-- `GET /api/v1/user/calendar_url` - Get calendar URL
-- `GET /api/v1/user/bookings` - Get bookings
-- `POST /api/v1/user/sync` - Manual sync
-- `GET /calendar/{uuid}.ics` - Calendar feed
-
-Documentation: http://localhost:8000/docs
-
-## Deployment
-
-Gibster uses GitHub Actions for automated CI/CD deployment to Kubernetes. 
-
-For detailed deployment instructions, see [**docs/deploy.md**](docs/deploy.md).
-
-### Quick Start
-
-1. **Configure GitHub Secrets** in your repository settings
-2. **Push to main branch** to trigger automatic deployment
-3. **Monitor deployment** via GitHub Actions
-
-The deployment guide covers:
-- GitHub repository setup and required secrets
-- CI/CD pipeline configuration
-- Manual deployment options
-- Monitoring and troubleshooting
-- Security best practices
-- Scaling configuration
-
-## Troubleshooting
-
-**Scraper login fails:** Verify Gibney credentials, check site changes, ensure Playwright installed with `python -m playwright install chromium`
-
-**"Playwright Sync API inside asyncio loop" error:** This has been fixed in the latest version. The scraper now uses Playwright's async API when called from FastAPI endpoints. If you encounter this error, ensure you have the latest code updates.
-
-**Calendar not updating (local dev):** Manual sync available via API at `/api/v1/user/sync` or run `python -c "from backend.worker import sync_scrape_all_users; sync_scrape_all_users()"`
-
-**Calendar not updating (Docker):** Check worker logs, verify Redis connection, restart worker
-
-**SQLite locked errors:** Ensure database file has proper permissions, close other connections to database
-
-**Calendar app not syncing:** Verify URL accessibility, check app refresh settings
-
-**Database errors:** Check DATABASE_URL, ensure database accessibility
-
-## FAQ
-
-**How often does sync happen?** Every 2 hours automatically, plus manual sync
-
-**Multiple Gibney accounts?** One per Gibster account currently
-
-**Security?** Credentials encrypted with Fernet, passwords hashed with bcrypt
-
-**Self-hosting?** Yes! Full Kubernetes deployment manifests included
+- **Backend**: FastAPI (Python) with PostgreSQL/SQLite
+- **Frontend**: Next.js (TypeScript) with React
+- **Scraping**: Playwright for web automation
+- **Infrastructure**: Docker, Kubernetes, GitHub Actions
 
 ## Contributing
 
-1. Fork and create feature branch
-2. Set up development environment: `python dev_setup.py` (automated setup)
-3. Make changes and add tests
-4. Run tests: `python run_tests.py --coverage` (runs both backend + frontend)
-5. Submit pull request
+We welcome contributions! Please follow these steps:
 
-**Guidelines:**
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Run the setup script (`python scripts/dev_setup.py`)
+4. Make your changes and add tests
+5. Run tests (`python scripts/run_tests.py --coverage`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
 
-- Follow PEP 8, add type hints and tests
-- Maintain 80%+ test coverage
-- Write descriptive commits and PR descriptions
+Please ensure:
+- All tests pass
+- Code follows project style guidelines
+- Test coverage remains above 80%
+- Documentation is updated as needed
+
+## Support
+
+- 🐛 [Report Issues](https://github.com/<your-org>/gibster/issues)
+- 💬 [Discussions](https://github.com/<your-org>/gibster/discussions)
+- 📧 Contact: support@gibster.app
 
 ## License
 
-Educational purposes. Please respect Gibney's terms of service.
+This project is for educational purposes. Please respect Gibney's terms of service when using this tool.
 
 ---
 
-## Technical Implementation Details
-
-### Database Schema
-
-**users table:**
-
-- `id` (uuid) - Primary key
-- `email` (varchar) - Login email
-- `password_hash` (varchar) - Hashed Gibster password
-- `gibney_email` (varchar) - Encrypted Gibney username
-- `gibney_pass` (varchar) - Encrypted Gibney password
-- `calendar_uuid` (uuid) - Calendar feed identifier
-- `created_at`, `updated_at` (timestamp)
-
-**bookings table:**
-
-- `id` (varchar) - Gibney booking ID
-- `user_id` (uuid) - Foreign key to users
-- `name` (varchar) - Booking name (e.g., "R-490015")
-- `start_time`, `end_time` (timestamp)
-- `studio`, `location`, `status` (varchar)
-- `price` (numeric)
-- `record_url` (varchar) - Link to Gibney booking
-- `last_seen` (timestamp) - For cleanup
-
-### Tech Stack Details
-
-- **Backend:** FastAPI (Python) for high-performance API with auto-documentation
-- **Frontend:** React with Vite for modern, fast UI development
-- **Scraping:** Playwright for JavaScript-heavy Salesforce-based Gibney site
-- **Calendar:** ics.py library for iCal generation
-- **Task Queue:** Celery with Redis for background job processing
-- **Database:** PostgreSQL for production, SQLite for development
-- **Deployment:** Docker containers for consistent environments
-
-### Async/Sync Implementation
-
-The scraper system supports both async and sync execution contexts:
-
-- **Async Version (`scrape_user_bookings`)**: Used when called from FastAPI endpoints, utilizing Playwright's async API
-- **Sync Wrapper (`scrape_user_bookings_sync`)**: Uses `asyncio.run()` to execute the async version in non-async contexts (Celery tasks, background workers)
-- **Context Detection**: Automatically chooses the appropriate version based on execution environment
-
-This design prevents the "Playwright Sync API inside asyncio loop" error while maintaining compatibility with both async FastAPI endpoints and synchronous background workers.
-
-### Security Implementation
-
-- User passwords hashed with bcrypt
-- Gibney credentials encrypted with Fernet symmetric encryption
-- JWT tokens for API authentication
-- HTTPS required for production
-- Environment-based configuration for secrets
-
-### Monitoring and Maintenance
-
-```bash
-# Health checks
-curl http://localhost:8000/health
-
-# View logs (Kubernetes)
-kubectl logs -l app=gibster -f
-
-# Database backup (Kubernetes)
-kubectl exec deployment/postgres -- pg_dump -U postgres gibster > backup.sql
-
-# Performance monitoring
-kubectl top pods
-```
-
-### Development Workflow
-
-```bash
-# Full development setup
-git clone <repo>
-cd gibster
-python dev_setup.py  # Automated setup including dependencies
-# Edit .env with your settings
-python run_server.py  # Start development server
-
-# Run tests (backend + frontend)
-python run_tests.py --verbose --coverage
-
-# Frontend development
-cd frontend && npm run dev  # Port 3000 with API proxy
-```
-
-**⚠️ Disclaimer:** Not affiliated with Gibney Dance Center. Use responsibly.
+**Note**: Gibster is not affiliated with Gibney Dance Center. Use responsibly and in accordance with Gibney's policies.

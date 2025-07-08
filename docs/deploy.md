@@ -61,7 +61,6 @@ Configure these secrets in your GitHub repository (`Settings > Secrets and varia
 | `ENCRYPTION_KEY` | Fernet key for encrypting credentials | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `REDIS_PASSWORD` | Redis authentication password         | Get from your Redis deployment                                                              |
 
-
 ### How Secrets Work
 
 All production secrets are automatically injected from GitHub repository secrets during deployment:
@@ -251,7 +250,6 @@ gibster/
 
 - **Master:** `redis.redis.svc.cluster.local:6379`
 - **Replicas:** `redis-replica.redis.svc.cluster.local:6379`
-
 
 ### TLS/SSL
 
