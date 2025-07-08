@@ -208,7 +208,8 @@ def get_user_calendar(db: Session, calendar_uuid: str) -> str:
             db.query(Booking)
             .filter(
                 Booking.user_id == user.id,
-                Booking.end_time >= datetime.now(timezone.utc),  # Only future/current bookings
+                Booking.end_time
+                >= datetime.now(timezone.utc),  # Only future/current bookings
             )
             .all()
         )

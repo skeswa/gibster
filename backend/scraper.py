@@ -273,8 +273,6 @@ class GibneyScraper:
                     logger.debug(
                         f"Successfully clicked button with selector: {selector}"
                     )
-                    # Give the page a moment to start processing the login
-                    await self.page.wait_for_timeout(1000)
                     break
                 except Exception as e:
                     logger.debug(f"Button selector {selector} failed: {e}")
@@ -504,8 +502,6 @@ class GibneyScraper:
                     wait_until="domcontentloaded",
                     timeout=NAVIGATION_TIMEOUT,
                 )
-                # Give the page time to load
-                await self.page.wait_for_timeout(2000)
             else:
                 # Wait for navigation after clicking My Rentals
                 logger.debug("Waiting for navigation after clicking My Rentals...")
@@ -598,15 +594,21 @@ class GibneyScraper:
             logger.error(f"Login failed for user {email}: {e}")
             raise GibneyScrapingError(f"Failed to login: {e}")
 
-    async def scrape_rentals(self) -> List[Dict[str, Any]]:
-        """Scrape rental data from the rentals page, handling pagination
+    async def scrape_rentals(
+        self, max_rentals: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Scrape rental data from the rentals page, handling infinite scroll
 
         This method will:
         1. Navigate to the rentals page if not already there
-        2. Scrape all bookings from the current page
-        3. Look for pagination controls (Next button)
-        4. Continue to next pages until no more pages exist
-        5. Return all bookings from all pages
+        2. Scrape all bookings from the current view
+        3. Scroll to the bottom to trigger infinite scroll loading
+        4. Wait for new content to load (spinner to disappear)
+        5. Continue scrolling until no new content loads
+        6. Return all bookings from the entire scrollable list
+
+        Args:
+            max_rentals: Optional limit on number of rentals to scrape (useful for testing)
 
         Returns:
             List of rental dictionaries containing booking information
@@ -711,39 +713,32 @@ class GibneyScraper:
                 )
 
             all_rentals = []
-            page_number = 1
-            max_pages = 100  # Safety limit to prevent infinite loops
+            processed_ids = set()  # Track IDs to avoid duplicates
+            max_scroll_attempts = 50  # Safety limit to prevent infinite scrolling
+            scroll_count = 0
+            last_row_count = 0
+            no_new_content_count = 0
 
-            while page_number <= max_pages:
-                logger.info(f"Scraping page {page_number}...")
+            while scroll_count < max_scroll_attempts:
+                scroll_start_time = datetime.now(timezone.utc)
+                logger.info(
+                    f"Processing content (scroll attempt {scroll_count + 1})..."
+                )
                 if self.sync_logger:
-                    self.sync_logger.info(f"Processing page {page_number} of bookings")
+                    self.sync_logger.info(
+                        f"Processing bookings (scroll {scroll_count + 1})"
+                    )
 
-                # Get page content
+                # Get current page content
                 content = await self.page.content()
                 soup = BeautifulSoup(content, "lxml")
 
-                # Debug: Check what tables are available (only log on first page)
-                if page_number == 1:
-                    all_tables = soup.select("table")
-                    logger.debug(f"Found {len(all_tables)} tables on the page")
-                    for j, table in enumerate(all_tables):
-                        table_classes_raw: Any = table.get("class") or []
-                        table_classes: List[str] = (
-                            table_classes_raw
-                            if isinstance(table_classes_raw, list)
-                            else []
-                        )
-                        logger.debug(f"  Table {j}: classes={table_classes}")
-
+                # Get all rows currently visible
                 rows = soup.select(f"{self._table_selector} tbody tr")
+                current_row_count = len(rows)
 
-                logger.info(
-                    f"Found {len(rows)} rental rows to process on page {page_number}"
-                )
-
-                # If no rows found, try alternative selectors
-                if len(rows) == 0:
+                # If no rows found on first attempt, try alternative selectors
+                if current_row_count == 0 and scroll_count == 0:
                     logger.warning(
                         "No rows found with primary selector, trying alternatives..."
                     )
@@ -761,35 +756,48 @@ class GibneyScraper:
                         )
                         if len(alt_rows) > 0:
                             rows = alt_rows
+                            current_row_count = len(rows)
                             logger.info(
-                                f"Using alternative selector '{alt_selector}' with {len(rows)} rows"
+                                f"Using alternative selector '{alt_selector}' with {current_row_count} rows"
                             )
                             break
 
-                # Process rows on current page
-                page_rentals = []
+                logger.info(f"Found {current_row_count} total rows in view")
+
+                # Process all visible rows
+                new_rentals_count = 0
                 for i, row in enumerate(rows):
                     cells = row.select("th, td")
                     if not cells or len(cells) < 8:
-                        logger.debug(
-                            f"Skipping row {i+1}: insufficient cells ({len(cells)})"
-                        )
                         continue
 
                     try:
-                        # Debug: Log all cell contents for troubleshooting
-                        logger.debug(f"Row {i+1} has {len(cells)} cells:")
-                        for j, cell in enumerate(cells):
-                            cell_text = cell.get_text(strip=True)
-                            logger.debug(f"  Cell {j}: '{cell_text}'")
-
-                        # Extract data from each cell
+                        # Extract rental link to get ID
                         rental_link = cells[1].select_one("a")
                         if not rental_link:
-                            logger.debug(f"Skipping row {i+1}: no rental link found")
                             continue
 
+                        # Extract record ID
+                        href = str(rental_link.get("href", ""))
+                        record_id_match = re.search(
+                            r"Id=([a-zA-Z0-9]+)", href
+                        ) or re.search(r"/([a-zA-Z0-9]{15,18})/", href)
+
                         rental_name = rental_link.get_text(strip=True)
+                        record_id = (
+                            record_id_match.group(1)
+                            if record_id_match
+                            else f"unknown_{rental_name}_{i}"
+                        )
+
+                        # Skip if we've already processed this booking
+                        if record_id in processed_ids:
+                            continue
+
+                        processed_ids.add(record_id)
+                        new_rentals_count += 1
+
+                        # Extract all booking data
                         start_time_str = cells[2].get_text(strip=True)
                         end_time_str = cells[3].get_text(strip=True)
                         studio = cells[4].get_text(strip=True)
@@ -797,82 +805,32 @@ class GibneyScraper:
                         status = cells[6].get_text(strip=True)
                         location = cells[7].get_text(strip=True)
 
-                        logger.debug(f"Extracted data for {rental_name}:")
-                        logger.debug(f"  Start time: '{start_time_str}'")
-                        logger.debug(f"  End time: '{end_time_str}'")
-                        logger.debug(f"  Studio: '{studio}'")
-                        logger.debug(f"  Price: '{price_str}'")
-                        logger.debug(f"  Status: '{status}'")
-                        logger.debug(f"  Location: '{location}'")
-
-                        # Extract record ID from href
-                        href = str(rental_link.get("href", ""))
-                        # Try both URL patterns: query parameter and path segment
-                        # Also handle IDs that may be shorter than 15 characters
-                        record_id_match = re.search(
-                            r"Id=([a-zA-Z0-9]+)", href
-                        ) or re.search(r"/([a-zA-Z0-9]{15,18})/", href)
-                        record_id = (
-                            record_id_match.group(1)
-                            if record_id_match
-                            else f"unknown_{rental_name}"
-                        )
-
                         # Parse dates with multiple format support
-                        try:
-                            logger.debug(
-                                f"Parsing start_time: '{start_time_str}', end_time: '{end_time_str}'"
-                            )
+                        date_formats = [
+                            "%m/%d/%Y %I:%M %p",  # 6/9/2025 7:00 PM
+                            "%b %d, %Y %I:%M %p",  # Jun 26, 2025 5:01 PM
+                            "%m/%d/%Y %H:%M",  # 6/9/2025 19:00
+                            "%Y-%m-%d %H:%M:%S",  # 2025-06-09 19:00:00
+                            "%Y-%m-%dT%H:%M:%S",  # 2025-06-09T19:00:00
+                        ]
 
-                            # Try multiple date formats that Gibney might use
-                            date_formats = [
-                                "%m/%d/%Y %I:%M %p",  # 6/9/2025 7:00 PM
-                                "%b %d, %Y %I:%M %p",  # Jun 26, 2025 5:01 PM
-                                "%m/%d/%Y %H:%M",  # 6/9/2025 19:00
-                                "%Y-%m-%d %H:%M:%S",  # 2025-06-09 19:00:00
-                                "%Y-%m-%dT%H:%M:%S",  # 2025-06-09T19:00:00
-                            ]
+                        start_dt = None
+                        end_dt = None
 
-                            start_dt = None
-                            end_dt = None
-
-                            # Try parsing start time with different formats
-                            for date_format in date_formats:
-                                try:
-                                    start_dt = datetime.strptime(
-                                        start_time_str, date_format
-                                    )
-                                    end_dt = datetime.strptime(
-                                        end_time_str, date_format
-                                    )
-                                    logger.debug(
-                                        f"Successfully parsed dates using format: {date_format}"
-                                    )
-                                    break
-                                except ValueError:
-                                    continue
-
-                            # If all parsing attempts failed
-                            if start_dt is None or end_dt is None:
-                                logger.warning(
-                                    f"Failed to parse dates for {rental_name}: start='{start_time_str}', end='{end_time_str}'"
+                        for date_format in date_formats:
+                            try:
+                                start_dt = datetime.strptime(
+                                    start_time_str, date_format
                                 )
-                                logger.warning(
-                                    "All date format attempts failed, using fallback"
-                                )
-                                # Use current time as fallback
-                                start_dt = datetime.now(timezone.utc)
-                                end_dt = datetime.now(timezone.utc)
-                            else:
-                                logger.debug(
-                                    f"Parsed dates successfully: {start_dt} to {end_dt}"
-                                )
+                                end_dt = datetime.strptime(end_time_str, date_format)
+                                break
+                            except ValueError:
+                                continue
 
-                        except Exception as e:
+                        if start_dt is None or end_dt is None:
                             logger.warning(
-                                f"Exception during date parsing for {rental_name}: {e}"
+                                f"Failed to parse dates for {rental_name}: start='{start_time_str}', end='{end_time_str}'"
                             )
-                            # Use current time as fallback
                             start_dt = datetime.now(timezone.utc)
                             end_dt = datetime.now(timezone.utc)
 
@@ -896,109 +854,183 @@ class GibneyScraper:
                             ),
                         }
 
-                        page_rentals.append(rental)
+                        all_rentals.append(rental)
                         logger.debug(f"Scraped rental: {rental_name}")
 
                     except Exception as e:
                         logger.warning(f"Skipping row {i+1} due to parsing error: {e}")
                         continue
 
-                # Add this page's rentals to the total
-                all_rentals.extend(page_rentals)
                 logger.info(
-                    f"Scraped {len(page_rentals)} rentals from page {page_number}"
+                    f"Processed {new_rentals_count} new rentals in this scroll. Total: {len(all_rentals)}"
                 )
                 if self.sync_logger:
                     self.sync_logger.info(
-                        f"Found {len(page_rentals)} bookings on page {page_number}",
-                        page_number=page_number,
-                        bookings_on_page=len(page_rentals),
-                        total_bookings_so_far=len(all_rentals),
+                        f"Found {new_rentals_count} new bookings",
+                        scroll_attempt=scroll_count + 1,
+                        total_bookings=len(all_rentals),
                     )
 
-                # Check for pagination controls
-                logger.debug("Looking for pagination controls...")
+                # Check if we got new content
+                if current_row_count == last_row_count:
+                    no_new_content_count += 1
+                    logger.debug(f"No new rows loaded (attempt {no_new_content_count})")
 
-                # Common pagination selectors to try
-                pagination_selectors = [
-                    'button:has-text("Next")',
-                    'a:has-text("Next")',
-                    'button[aria-label*="Next"]',
-                    'a[aria-label*="Next"]',
-                    '.slds-button:has-text("Next")',
-                    'lightning-button:has-text("Next")',
-                    "button.nextButton",
-                    "a.next-page",
-                    '[data-aura-class*="uiPager"] button:has-text("Next")',
-                    '.uiPager button:has-text("Next")',
-                    'button[title="Next Page"]',
-                    'a[title="Next Page"]',
+                    # If no new content after multiple attempts, we're done
+                    if no_new_content_count >= 2:
+                        logger.info(
+                            "No new content after 2 attempts, assuming all data loaded"
+                        )
+                        break
+                else:
+                    no_new_content_count = 0
+                    last_row_count = current_row_count
+
+                # Scroll to bottom to trigger infinite scroll
+                logger.debug("Scrolling to bottom to trigger infinite scroll...")
+
+                # First, scroll to the bottom of the page
+                await self.page.evaluate(
+                    "window.scrollTo(0, document.body.scrollHeight)"
+                )
+
+                # Also try scrolling the table container if it exists
+                try:
+                    await self.page.evaluate(
+                        """
+                        // Find the table container that might have its own scroll
+                        const tableContainers = document.querySelectorAll('[class*="slds-scrollable"], [style*="overflow"], .datatable-container, [class*="scroll"]');
+                        tableContainers.forEach(container => {
+                            container.scrollTop = container.scrollHeight;
+                        });
+                        
+                        // Also try the table's parent elements
+                        const table = document.querySelector('table');
+                        if (table) {
+                            let parent = table.parentElement;
+                            while (parent && parent !== document.body) {
+                                if (parent.scrollHeight > parent.clientHeight) {
+                                    parent.scrollTop = parent.scrollHeight;
+                                }
+                                parent = parent.parentElement;
+                            }
+                        }
+                    """
+                    )
+                except Exception as e:
+                    logger.debug(f"Table container scroll attempt failed: {e}")
+
+                # Wait for potential spinner/loading indicator
+                logger.debug("Waiting for loading indicator...")
+
+                # Look for common loading indicators
+                loading_selectors = [
+                    ".spinner",
+                    '[class*="spinner"]',
+                    '[class*="loading"]',
+                    '[class*="slds-spinner"]',
+                    ".slds-spinner_container",
+                    '[role="status"]',
+                    "lightning-spinner",
                 ]
 
-                next_button_found = False
-                for selector in pagination_selectors:
+                # Use JavaScript to check all spinner selectors at once (much faster)
+                spinner_check_script = """
+                    () => {
+                        const selectors = [
+                            '.spinner',
+                            '[class*="spinner"]',
+                            '[class*="loading"]',
+                            '[class*="slds-spinner"]',
+                            '.slds-spinner_container',
+                            '[role="status"]',
+                            'lightning-spinner'
+                        ];
+                        
+                        for (const selector of selectors) {
+                            const elements = document.querySelectorAll(selector);
+                            for (const el of elements) {
+                                // Check if element is visible
+                                if (el && el.offsetParent !== null && 
+                                    (el.offsetWidth > 0 || el.offsetHeight > 0)) {
+                                    return selector;
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                """
+
+                # Quick check for any visible spinner (takes ~10ms vs 2000ms per selector)
+                spinner_selector = await self.page.evaluate(spinner_check_script)
+
+                if spinner_selector:
+                    logger.debug(f"Found loading indicator: {spinner_selector}")
+                    # Wait for the specific spinner to disappear
                     try:
-                        # Check if next button exists and is not disabled
-                        next_button = await self.page.query_selector(selector)
-                        if next_button:
-                            # Check if button is disabled
-                            is_disabled = await next_button.get_attribute("disabled")
-                            aria_disabled = await next_button.get_attribute(
-                                "aria-disabled"
-                            )
-
-                            if is_disabled == "true" or aria_disabled == "true":
-                                logger.info(
-                                    f"Next button found but disabled with selector: {selector}"
-                                )
-                                break
-
-                            # Click the next button
-                            logger.info(
-                                f"Found and clicking next button with selector: {selector}"
-                            )
-                            await next_button.click()
-                            next_button_found = True
-
-                            # Wait for the page to load new content
-                            logger.debug("Waiting for new page content to load...")
-                            try:
-                                # Wait for table to update (might need to adjust selector)
-                                await self.page.wait_for_load_state(
-                                    "networkidle", timeout=NETWORK_IDLE_TIMEOUT
-                                )
-                                await self.page.wait_for_selector(
-                                    self._table_selector, timeout=ELEMENT_TIMEOUT
-                                )
-                                # Additional wait to ensure content is fully rendered
-                                await self.page.wait_for_timeout(2000)
-                            except Exception as e:
-                                logger.warning(
-                                    f"Timeout waiting for new page content: {e}"
-                                )
-
-                            page_number += 1
-                            break
-
+                        await self.page.wait_for_selector(
+                            spinner_selector,
+                            timeout=10000,
+                            state="hidden",
+                        )
+                        logger.debug("Loading indicator disappeared")
+                        # Small wait for DOM to stabilize after spinner
+                        await self.page.wait_for_timeout(200)
                     except Exception as e:
-                        logger.debug(f"Pagination selector {selector} failed: {e}")
-                        continue
+                        logger.debug(f"Spinner wait timeout: {e}")
+                else:
+                    # No spinner visible, check if content changed
+                    logger.debug(
+                        "No loading indicator found, checking for content changes..."
+                    )
 
-                # If no next button found or it's disabled, we're done
-                if not next_button_found:
-                    logger.info("No more pages found - pagination complete")
+                    # Wait for potential DOM changes instead of fixed timeout
+                    try:
+                        await self.page.wait_for_function(
+                            f"document.querySelectorAll('{self._table_selector} tbody tr').length > {current_row_count}",
+                            timeout=1500,
+                        )
+                        logger.debug("New content detected")
+                    except:
+                        # No new content within timeout
+                        logger.debug("No new content detected within timeout")
+
+                scroll_count += 1
+
+                # Log scroll performance
+                scroll_duration = (
+                    datetime.now(timezone.utc) - scroll_start_time
+                ).total_seconds()
+                logger.debug(f"Scroll iteration took {scroll_duration:.2f} seconds")
+
+                # Check if we've reached the rental limit
+                if max_rentals and len(all_rentals) >= max_rentals:
+                    logger.info(f"Reached rental limit of {max_rentals}, stopping")
                     break
 
-                # Safety check to prevent infinite loops
-                if page_number > max_pages:
+                # Safety check
+                if scroll_count >= max_scroll_attempts:
                     logger.warning(
-                        f"Reached maximum page limit ({max_pages}), stopping pagination"
+                        f"Reached maximum scroll attempts ({max_scroll_attempts}), stopping"
                     )
                     break
 
+            # Log overall scraping performance
+            total_scrape_duration = (
+                datetime.now(timezone.utc) - scraping_start_time
+            ).total_seconds()
             logger.info(
-                f"Successfully scraped {len(all_rentals)} total rentals across {page_number} page(s)"
+                f"Successfully scraped {len(all_rentals)} total rentals after {scroll_count} scroll attempts in {total_scrape_duration:.2f} seconds"
             )
+            if self.sync_logger:
+                self.sync_logger.log_timing(
+                    "Rental scraping completed", scraping_start_time
+                )
+
+            # If max_rentals was specified, return only up to that limit
+            if max_rentals and len(all_rentals) > max_rentals:
+                return all_rentals[:max_rentals]
+
             return all_rentals
 
         except Exception as e:

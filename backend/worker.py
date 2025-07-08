@@ -582,15 +582,17 @@ _stale_check_interval = 60  # Only check every 60 seconds
 def check_and_mark_stale_jobs(db: Session, timeout_minutes: int = 10):
     """Check for stale jobs and mark them as failed"""
     global _last_stale_check_time
-    
+
     # Rate limit the checks to avoid excessive database queries
     current_time = datetime.now(timezone.utc)
     if _last_stale_check_time is not None:
         time_since_last_check = (current_time - _last_stale_check_time).total_seconds()
         if time_since_last_check < _stale_check_interval:
-            logger.debug(f"Skipping stale job check (last checked {time_since_last_check:.1f}s ago)")
+            logger.debug(
+                f"Skipping stale job check (last checked {time_since_last_check:.1f}s ago)"
+            )
             return 0
-    
+
     _last_stale_check_time = current_time
     logger.debug(f"Checking for stale sync jobs (timeout: {timeout_minutes} minutes)")
 

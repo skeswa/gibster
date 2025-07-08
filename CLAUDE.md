@@ -212,7 +212,9 @@ Visit `/theme-demo` in development to see all themed components in action.
 3. Backend authenticates users via JWT tokens
 4. Backend stores encrypted Gibney credentials in database
 5. Celery workers (or sync tasks in dev) scrape Gibney website using Playwright
-   - Scraper handles pagination automatically to fetch all bookings across multiple pages
+   - Scraper handles infinite scroll automatically by scrolling to the bottom of the page
+   - When scrolled to bottom, the page loads more bookings via JavaScript
+   - Scraper continues scrolling until no new content is loaded
 6. Calendar feed (.ics) is generated and made available for subscription
 
 ### Key Architectural Decisions

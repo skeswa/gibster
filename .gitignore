@@ -276,4 +276,4 @@ temp/
 .chrome/
 
 # Debug files
-debug_rentals_page.html 
+debug_rentals_page_*.html 

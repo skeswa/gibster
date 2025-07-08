@@ -131,9 +131,15 @@ async def test_gibney_login():
         return False
 
 
-async def test_gibney_scrape_rentals():
-    """Test full scraping functionality"""
+async def test_gibney_scrape_rentals(max_rentals=None):
+    """Test full scraping functionality
+
+    Args:
+        max_rentals: Optional limit on number of rentals to scrape (for faster testing)
+    """
     print("\n=== Testing Gibney Rental Scraping ===")
+    if max_rentals:
+        print(f"(Limited to {max_rentals} rentals for faster testing)")
 
     # Get credentials
     email = os.environ.get("GIBNEY_EMAIL")
@@ -159,7 +165,7 @@ async def test_gibney_scrape_rentals():
             # Scrape rentals
             print("\nScraping rentals...")
             scrape_start = datetime.now()
-            rentals = await scraper.scrape_rentals()
+            rentals = await scraper.scrape_rentals(max_rentals=max_rentals)
             scrape_duration = (datetime.now() - scrape_start).total_seconds()
 
             print(f"\n✓ Scraping complete (took {scrape_duration:.2f} seconds)")
@@ -202,13 +208,21 @@ async def main():
     print("\nNote: These tests connect to the real Gibney website.")
     print("Make sure you have valid credentials.\n")
 
+    # Check for performance test mode
+    if "--fast" in sys.argv or os.environ.get("FAST_TEST"):
+        print("Running in FAST mode - limiting to 10 rentals\n")
+        max_rentals = 10
+    else:
+        max_rentals = None
+        print("Running full test (use --fast or FAST_TEST=1 for quicker test)\n")
+
     # Test login
     login_success = await test_gibney_login()
 
     if login_success:
         # If login works, test full scraping
         await asyncio.sleep(2)  # Brief pause between tests
-        await test_gibney_scrape_rentals()
+        await test_gibney_scrape_rentals(max_rentals=max_rentals)
     else:
         print("\n✗ Skipping rental scraping test due to login failure")
 

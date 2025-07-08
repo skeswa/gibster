@@ -149,16 +149,18 @@ class TestScraperErrors:
 
 @pytest.mark.unit
 class TestScraperPagination:
-    """Test pagination functionality in the scraper"""
+    """Test infinite scroll functionality in the scraper"""
 
     @pytest.mark.asyncio
-    async def test_single_page_scraping(self):
-        """Test scraping when there's only one page of results"""
+    async def test_single_page_scraping_no_scroll_needed(self):
+        """Test scraping when all results are loaded initially"""
         scraper = GibneyScraper()
 
         # Mock the page object
         mock_page = AsyncMock()
         mock_page.url = "https://gibney.my.site.com/s/booking-item"
+
+        # Content remains the same after scrolling
         mock_page.content = AsyncMock(
             return_value="""
             <table class="forceRecordLayout">
@@ -178,9 +180,11 @@ class TestScraperPagination:
         """
         )
 
-        # Mock query_selector to return None (no next button)
-        mock_page.query_selector = AsyncMock(return_value=None)
-        mock_page.wait_for_selector = AsyncMock()
+        # Mock scrolling and waiting functions
+        mock_page.evaluate = AsyncMock()
+        mock_page.wait_for_selector = AsyncMock()  # Mock successful table wait first
+        mock_page.wait_for_timeout = AsyncMock()
+        mock_page.wait_for_function = AsyncMock(side_effect=Exception("No new content"))
 
         scraper.page = mock_page
 
@@ -190,182 +194,298 @@ class TestScraperPagination:
         assert rentals[0]["name"] == "R-001"
         assert rentals[0]["id"] == "a27Pb000000001"
 
+        # Verify scrolling was attempted
+        assert mock_page.evaluate.call_count >= 1
+
     @pytest.mark.asyncio
-    async def test_multi_page_scraping(self):
-        """Test scraping when there are multiple pages of results"""
+    async def test_infinite_scroll_with_new_content(self):
+        """Test scraping with infinite scroll that loads new content"""
         scraper = GibneyScraper()
 
-        # Create page contents for two pages
-        page1_content = """
-            <table class="forceRecordLayout">
-                <tbody>
-                    <tr>
-                        <td></td>
-                        <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
-                        <td>1/1/2024 10:00 AM</td>
-                        <td>1/1/2024 11:00 AM</td>
-                        <td>Studio A</td>
-                        <td>$50.00</td>
-                        <td>Confirmed</td>
-                        <td>Location 1</td>
-                    </tr>
-                </tbody>
-            </table>
-        """
-
-        page2_content = """
-            <table class="forceRecordLayout">
-                <tbody>
-                    <tr>
-                        <td></td>
-                        <td><a href="/s/rental-form?Id=a27Pb000000002">R-002</a></td>
-                        <td>1/2/2024 10:00 AM</td>
-                        <td>1/2/2024 11:00 AM</td>
-                        <td>Studio B</td>
-                        <td>$60.00</td>
-                        <td>Confirmed</td>
-                        <td>Location 2</td>
-                    </tr>
-                </tbody>
-            </table>
-        """
-
-        # Track which page we're on
-        page_calls = 0
-
-        # Track content calls separately from page calls
+        # Track content calls to simulate infinite scroll
         content_calls = 0
 
         async def mock_content():
             nonlocal content_calls
             content_calls += 1
             if content_calls <= 1:
-                return page1_content
+                # Initial load - one booking
+                return """
+                    <table class="forceRecordLayout">
+                        <tbody>
+                            <tr>
+                                <td></td>
+                                <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
+                                <td>1/1/2024 10:00 AM</td>
+                                <td>1/1/2024 11:00 AM</td>
+                                <td>Studio A</td>
+                                <td>$50.00</td>
+                                <td>Confirmed</td>
+                                <td>Location 1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                """
+            elif content_calls == 2:
+                # After first scroll - two bookings
+                return """
+                    <table class="forceRecordLayout">
+                        <tbody>
+                            <tr>
+                                <td></td>
+                                <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
+                                <td>1/1/2024 10:00 AM</td>
+                                <td>1/1/2024 11:00 AM</td>
+                                <td>Studio A</td>
+                                <td>$50.00</td>
+                                <td>Confirmed</td>
+                                <td>Location 1</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><a href="/s/rental-form?Id=a27Pb000000002">R-002</a></td>
+                                <td>1/2/2024 10:00 AM</td>
+                                <td>1/2/2024 11:00 AM</td>
+                                <td>Studio B</td>
+                                <td>$60.00</td>
+                                <td>Confirmed</td>
+                                <td>Location 2</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                """
             else:
-                return page2_content
-
-        # Mock next button behavior
-        mock_next_button = AsyncMock()
-        mock_next_button.get_attribute = AsyncMock(return_value=None)  # Not disabled
-        mock_next_button.click = AsyncMock()
-
-        async def mock_query_selector(selector):
-            nonlocal content_calls
-            # Only show next button on first page
-            if "Next" in selector and content_calls <= 1:
-                return mock_next_button
-            return None
+                # No more new content - same as previous
+                return """
+                    <table class="forceRecordLayout">
+                        <tbody>
+                            <tr>
+                                <td></td>
+                                <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
+                                <td>1/1/2024 10:00 AM</td>
+                                <td>1/1/2024 11:00 AM</td>
+                                <td>Studio A</td>
+                                <td>$50.00</td>
+                                <td>Confirmed</td>
+                                <td>Location 1</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><a href="/s/rental-form?Id=a27Pb000000002">R-002</a></td>
+                                <td>1/2/2024 10:00 AM</td>
+                                <td>1/2/2024 11:00 AM</td>
+                                <td>Studio B</td>
+                                <td>$60.00</td>
+                                <td>Confirmed</td>
+                                <td>Location 2</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                """
 
         # Mock the page object
         mock_page = AsyncMock()
         mock_page.url = "https://gibney.my.site.com/s/booking-item"
         mock_page.content = mock_content
-        mock_page.query_selector = mock_query_selector
-        mock_page.wait_for_selector = AsyncMock()
-        mock_page.wait_for_load_state = AsyncMock()
+        mock_page.evaluate = AsyncMock(return_value=None)  # No spinner found
+        mock_page.wait_for_selector = AsyncMock()  # Mock successful table wait first
         mock_page.wait_for_timeout = AsyncMock()
+        mock_page.wait_for_function = AsyncMock(side_effect=Exception("No new content"))
 
         scraper.page = mock_page
 
         rentals = await scraper.scrape_rentals()
 
-        # Should have scraped both pages
+        # Should have scraped both bookings
         assert len(rentals) == 2
         assert rentals[0]["name"] == "R-001"
         assert rentals[1]["name"] == "R-002"
 
+        # Verify scrolling was performed multiple times
+        assert mock_page.evaluate.call_count >= 2
+
     @pytest.mark.asyncio
-    async def test_pagination_with_disabled_next_button(self):
-        """Test that pagination stops when next button is disabled"""
+    async def test_infinite_scroll_with_spinner(self):
+        """Test that scraper waits for spinner during infinite scroll"""
         scraper = GibneyScraper()
 
-        page_content = """
-            <table class="forceRecordLayout">
-                <tbody>
-                    <tr>
-                        <td></td>
-                        <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
-                        <td>1/1/2024 10:00 AM</td>
-                        <td>1/1/2024 11:00 AM</td>
-                        <td>Studio A</td>
-                        <td>$50.00</td>
-                        <td>Confirmed</td>
-                        <td>Location 1</td>
-                    </tr>
-                </tbody>
-            </table>
-        """
+        content_calls = 0
 
-        # Mock disabled next button
-        mock_next_button = AsyncMock()
-        mock_next_button.get_attribute = AsyncMock(
-            side_effect=lambda attr: "true" if attr == "disabled" else None
-        )
+        async def mock_content():
+            nonlocal content_calls
+            content_calls += 1
+            # Always return same content to simulate no new data
+            return """
+                <table class="forceRecordLayout">
+                    <tbody>
+                        <tr>
+                            <td></td>
+                            <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
+                            <td>1/1/2024 10:00 AM</td>
+                            <td>1/1/2024 11:00 AM</td>
+                            <td>Studio A</td>
+                            <td>$50.00</td>
+                            <td>Confirmed</td>
+                            <td>Location 1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+
+        # Mock spinner behavior
+        spinner_call_count = 0
+
+        async def mock_wait_for_selector(selector, **kwargs):
+            nonlocal spinner_call_count
+            # First handle table selector
+            if "table" in selector:
+                return AsyncMock()  # Table found
+            # Then handle spinner selectors
+            if "spinner" in selector and kwargs.get("state") == "visible":
+                spinner_call_count += 1
+                if spinner_call_count == 1:
+                    # First time, simulate finding a spinner
+                    return AsyncMock()
+            raise Exception("No spinner")
 
         # Mock the page object
         mock_page = AsyncMock()
         mock_page.url = "https://gibney.my.site.com/s/booking-item"
-        mock_page.content = AsyncMock(return_value=page_content)
-        mock_page.query_selector = AsyncMock(return_value=mock_next_button)
-        mock_page.wait_for_selector = AsyncMock()
+        mock_page.content = mock_content
+        mock_page.evaluate = AsyncMock(
+            return_value=".spinner"
+        )  # Spinner found first time
+        mock_page.wait_for_selector = mock_wait_for_selector
+        mock_page.wait_for_timeout = AsyncMock()
+        mock_page.wait_for_function = AsyncMock(side_effect=Exception("No new content"))
 
         scraper.page = mock_page
 
         rentals = await scraper.scrape_rentals()
 
-        # Should stop at first page due to disabled button
+        # Should have found one booking
         assert len(rentals) == 1
         assert rentals[0]["name"] == "R-001"
 
+        # Verify spinner was detected (evaluate was called to check for spinner)
+        assert mock_page.evaluate.called
+        # The evaluate mock should have been called with spinner detection script
+        evaluate_calls = [str(call) for call in mock_page.evaluate.call_args_list]
+        assert any("spinner" in call for call in evaluate_calls)
+
     @pytest.mark.asyncio
-    async def test_pagination_max_pages_limit(self):
-        """Test that pagination stops at max_pages limit"""
+    async def test_infinite_scroll_max_attempts_limit(self):
+        """Test that infinite scroll stops at max_scroll_attempts limit"""
         scraper = GibneyScraper()
 
-        page_content = """
-            <table class="forceRecordLayout">
-                <tbody>
+        # Create content that always adds new rows (simulate endless scroll)
+        content_calls = 0
+
+        async def mock_content():
+            nonlocal content_calls
+            content_calls += 1
+            # Generate unique content each time to simulate infinite data
+            rows = []
+            for i in range(content_calls):
+                rows.append(
+                    f"""
                     <tr>
                         <td></td>
-                        <td><a href="/s/rental-form?Id=a27Pb000000001">R-001</a></td>
-                        <td>1/1/2024 10:00 AM</td>
-                        <td>1/1/2024 11:00 AM</td>
+                        <td><a href="/s/rental-form?Id=a27Pb00000000{i:03d}">R-{i:03d}</a></td>
+                        <td>1/{i+1}/2024 10:00 AM</td>
+                        <td>1/{i+1}/2024 11:00 AM</td>
                         <td>Studio A</td>
                         <td>$50.00</td>
                         <td>Confirmed</td>
                         <td>Location 1</td>
                     </tr>
-                </tbody>
-            </table>
-        """
+                """
+                )
 
-        # Mock a next button that's always available
-        mock_next_button = AsyncMock()
-        mock_next_button.get_attribute = AsyncMock(return_value=None)
-        mock_next_button.click = AsyncMock()
+            return f"""
+                <table class="forceRecordLayout">
+                    <tbody>
+                        {''.join(rows)}
+                    </tbody>
+                </table>
+            """
 
         # Mock the page object
         mock_page = AsyncMock()
         mock_page.url = "https://gibney.my.site.com/s/booking-item"
-        mock_page.content = AsyncMock(return_value=page_content)
-        mock_page.query_selector = AsyncMock(return_value=mock_next_button)
-        mock_page.wait_for_selector = AsyncMock()
-        mock_page.wait_for_load_state = AsyncMock()
+        mock_page.content = mock_content
+        mock_page.evaluate = AsyncMock(return_value=None)  # No spinner found
+        mock_page.wait_for_selector = AsyncMock()  # Mock successful table wait first
         mock_page.wait_for_timeout = AsyncMock()
+        mock_page.wait_for_function = AsyncMock(side_effect=Exception("No new content"))
 
         scraper.page = mock_page
 
-        # This should eventually stop due to max_pages limit
+        # This should eventually stop due to max_scroll_attempts limit
         with patch("backend.scraper.logger") as mock_logger:
             rentals = await scraper.scrape_rentals()
 
-            # Check that we hit the max pages warning
+            # Check that we hit the max scroll attempts warning
             warning_calls = [
                 call
                 for call in mock_logger.warning.call_args_list
-                if "maximum page limit" in str(call)
+                if "maximum scroll attempts" in str(call)
             ]
             assert len(warning_calls) > 0
+
+            # Should have scraped many items before hitting the limit
+            assert len(rentals) > 10  # Should get at least some rentals before limit
+
+    @pytest.mark.asyncio
+    async def test_max_rentals_limit(self):
+        """Test that scraping stops when max_rentals limit is reached"""
+        scraper = GibneyScraper()
+
+        # Create content with many rentals
+        async def mock_content():
+            rows = []
+            for i in range(20):  # 20 rentals available
+                rows.append(
+                    f"""
+                    <tr>
+                        <td></td>
+                        <td><a href="/s/rental-form?Id=a27Pb00000000{i:03d}">R-{i:03d}</a></td>
+                        <td>1/{i+1}/2024 10:00 AM</td>
+                        <td>1/{i+1}/2024 11:00 AM</td>
+                        <td>Studio A</td>
+                        <td>$50.00</td>
+                        <td>Confirmed</td>
+                        <td>Location 1</td>
+                    </tr>
+                """
+                )
+
+            return f"""
+                <table class="forceRecordLayout">
+                    <tbody>
+                        {''.join(rows)}
+                    </tbody>
+                </table>
+            """
+
+        # Mock the page object
+        mock_page = AsyncMock()
+        mock_page.url = "https://gibney.my.site.com/s/booking-item"
+        mock_page.content = mock_content
+        mock_page.evaluate = AsyncMock(return_value=None)  # No spinner found
+        mock_page.wait_for_selector = AsyncMock()  # Mock successful table wait first
+        mock_page.wait_for_timeout = AsyncMock()
+        mock_page.wait_for_function = AsyncMock(side_effect=Exception("No new content"))
+
+        scraper.page = mock_page
+
+        # Scrape with limit of 5
+        rentals = await scraper.scrape_rentals(max_rentals=5)
+
+        # Should have exactly 5 rentals
+        assert len(rentals) == 5
+        assert rentals[0]["name"] == "R-000"
+        assert rentals[4]["name"] == "R-004"
 
 
 @pytest.mark.integration
@@ -396,9 +516,9 @@ class TestScraperPaginationIntegration:
         # The actual implementation is tested in the pagination tests above
         # which verify that tables with class="forceRecordLayout" are found
         scraper = GibneyScraper()
-        
+
         # Verify the default selector is set
         assert scraper._table_selector == "table.forceRecordLayout"
-        
+
         # The fallback logic is tested implicitly in the pagination tests
         # where mock pages with forceRecordLayout tables are successfully scraped
