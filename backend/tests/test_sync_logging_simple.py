@@ -69,7 +69,7 @@ class TestSyncJobLoggerSimple:
         test_db.commit()
 
         # Create logger
-        logger = SyncJobLogger(test_db, job.id)
+        logger = SyncJobLogger(test_db, getattr(job, "id"))
 
         # Simulate sync flow with logging
         logger.info("Sync job started", user_id=str(test_user.id))
@@ -83,9 +83,9 @@ class TestSyncJobLoggerSimple:
         logger.info("Sync completed successfully", total_bookings=4)
 
         # Update job status
-        job.status = "completed"
-        job.bookings_synced = 4
-        job.completed_at = datetime.utcnow()
+        setattr(job, "status", "completed")
+        setattr(job, "bookings_synced", 4)
+        setattr(job, "completed_at", datetime.utcnow())
         test_db.commit()
 
         # Verify logs
@@ -132,18 +132,18 @@ class TestSyncJobLoggerSimple:
         test_db.commit()
 
         # Create logger
-        logger = SyncJobLogger(test_db, job.id)
+        logger = SyncJobLogger(test_db, getattr(job, "id"))
 
         # Simulate failed sync flow
         logger.info("Sync job started", user_id=str(test_user.id))
         logger.info("Connecting to Gibney...")
         logger.error("Login failed - invalid credentials")
-        logger.error("Sync failed", error="Authentication error")
+        logger.error("Sync failed", error_message="Authentication error")
 
         # Update job status
-        job.status = "failed"
-        job.error_message = "Invalid credentials"
-        job.completed_at = datetime.utcnow()
+        setattr(job, "status", "failed")
+        setattr(job, "error_message", "Invalid credentials")
+        setattr(job, "completed_at", datetime.utcnow())
         test_db.commit()
 
         # Verify logs

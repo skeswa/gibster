@@ -465,31 +465,60 @@ class GibneyScraper:
                 # Give the page time to load
                 await self.page.wait_for_timeout(2000)
             else:
-                # Wait for navigation to rentals page
-                logger.debug("Waiting for navigation to rentals page...")
+                # Wait for navigation after clicking My Rentals
+                logger.debug("Waiting for navigation after clicking My Rentals...")
+                navigation_start = datetime.now(timezone.utc)
+                
                 try:
-                    await self.page.wait_for_url(
-                        f"{RENTALS_URL}**", timeout=NAVIGATION_TIMEOUT
-                    )
-                except Exception as nav_error:
-                    # Log current URL and page info for debugging
+                    # Use a shorter timeout for initial navigation
+                    SHORT_NAV_TIMEOUT = 10000  # 10 seconds
+                    
+                    # Wait for any navigation to occur
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=SHORT_NAV_TIMEOUT)
+                    
+                    # Check current URL immediately
                     current_url = self.page.url
-                    logger.warning(
-                        f"Failed to navigate to rentals page. Current URL: {current_url}"
-                    )
-                    logger.debug(f"Navigation error: {nav_error}")
-
-                    # Check if we're already on a booking-related page
-                    if "booking" in current_url or "rental" in current_url:
-                        logger.info("Already on a booking-related page, proceeding...")
+                    logger.debug(f"Navigated to: {current_url}")
+                    
+                    # Check if we're on any booking-related page
+                    if "booking" in current_url or "rental" in current_url or "/s/" in current_url:
+                        # We're on a valid page, wait briefly for content to load
+                        try:
+                            # Try to wait for table or other booking indicators
+                            await self.page.wait_for_selector(
+                                "table, [class*='booking'], [class*='rental']",
+                                timeout=5000,
+                                state="visible"
+                            )
+                            logger.info("Successfully navigated to booking page")
+                        except:
+                            # Even if selector fails, we're on the right page
+                            logger.debug("On booking page but couldn't find specific elements")
+                        
+                        navigation_duration = (datetime.now(timezone.utc) - navigation_start).total_seconds()
+                        logger.debug(f"Navigation completed in {navigation_duration:.2f} seconds")
                     else:
-                        # Try direct navigation as fallback
-                        logger.warning(
-                            "Attempting direct navigation to rentals page as fallback..."
-                        )
+                        # We're not on a booking page, try direct navigation
+                        logger.warning(f"Unexpected page after My Rentals click: {current_url}")
+                        logger.info("Navigating directly to rentals page...")
                         await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
-                        # Give the page time to load
-                        await self.page.wait_for_timeout(2000)
+                        
+                except Exception as nav_error:
+                    # Navigation failed completely
+                    current_url = self.page.url
+                    logger.warning(f"Navigation issue detected. Current URL: {current_url}, Error: {nav_error}")
+                    
+                    # If we're already on a booking page despite the error, continue
+                    if "booking" in current_url or "rental" in current_url:
+                        logger.info("Already on a booking-related page despite navigation error, proceeding...")
+                    else:
+                        # Last resort: direct navigation
+                        logger.warning("Attempting direct navigation to rentals page...")
+                        try:
+                            await self.page.goto(RENTALS_URL, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+                        except Exception as goto_error:
+                            logger.error(f"Direct navigation also failed: {goto_error}")
+                            raise GibneyScrapingError("Unable to navigate to rentals page")
 
             logger.info(f"Login successful for user: {email}")
 
