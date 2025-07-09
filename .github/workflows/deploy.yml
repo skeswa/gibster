@@ -1,4 +1,4 @@
-name: Deploy to Rhuidean Cluster
+name: Deploy Gibster
 
 on:
   push:
