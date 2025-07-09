@@ -115,6 +115,8 @@ jobs:
     - name: Update image tags in manifests
       run: |
         cd k8s/overlays/production
+        
+        # Create kustomization.yaml with image tags
         cat > kustomization.yaml << EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization
@@ -135,8 +137,19 @@ jobs:
           behavior: merge
           literals:
           - environment=production
-          - api-url=https://gibster.sandile.dev
+          - api-url=https://${{ secrets.PRODUCTION_DOMAIN }}
+
+        patchesStrategicMerge:
+        - deployment-patches.yaml
+        - ingress.yaml
+        - certificate.yaml
         EOF
+        
+        # Generate ingress from template
+        sed "s/\${PRODUCTION_DOMAIN}/${{ secrets.PRODUCTION_DOMAIN }}/g" ingress-template.yaml > ingress.yaml
+        
+        # Generate certificate from template
+        sed "s/\${PRODUCTION_DOMAIN}/${{ secrets.PRODUCTION_DOMAIN }}/g" certificate-template.yaml > certificate.yaml
 
     - name: Create or update Kubernetes secrets
       run: |

@@ -2,6 +2,22 @@
 
 This guide covers deploying Gibster to production using Kubernetes and GitHub Actions.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [GitHub Repository Setup](#github-repository-setup)
+- [Automated CI/CD Pipeline](#automated-cicd-pipeline)
+- [Manual Deployment](#manual-deployment)
+- [Production Configuration](#production-configuration)
+- [Architecture](#architecture)
+- [Monitoring & Troubleshooting](#monitoring--troubleshooting)
+- [Scaling](#scaling)
+- [Backup and Recovery](#backup-and-recovery)
+- [Security Best Practices](#security-best-practices)
+- [Maintenance](#maintenance)
+- [Additional Resources](#additional-resources)
+
 ## Overview
 
 Gibster uses automated CI/CD deployment via GitHub Actions to a Kubernetes cluster. The deployment includes:
@@ -10,15 +26,26 @@ Gibster uses automated CI/CD deployment via GitHub Actions to a Kubernetes clust
 - Next.js frontend
 - PostgreSQL database
 - Redis for task queue
-- Automated SSL/TLS via ingress
+- Automated SSL/TLS via cert-manager
+
+The deployment pipeline:
+
+1. Runs tests on every push and pull request
+2. Builds and pushes Docker images on merge to main
+3. Automatically deploys to Kubernetes with secrets management
+4. Monitors rollout status
 
 ## Prerequisites
 
-- Kubernetes cluster (1.19+)
-- kubectl configured
-- GitHub repository
-- Container registry access (GitHub Container Registry)
-- Domain name for production
+- **Kubernetes cluster** (1.19+) with:
+  - PostgreSQL (CloudNativePG or similar)
+  - Redis (for Celery task queue)
+  - cert-manager (for TLS certificates)
+  - Ingress controller (nginx or similar)
+- **kubectl** configured
+- **GitHub repository** with Actions enabled
+- **Domain name** with DNS pointing to your cluster
+- **Container registry access** (uses GitHub Container Registry by default)
 
 ## GitHub Repository Setup
 
@@ -35,13 +62,14 @@ Go to Settings → Secrets → Actions and add:
 
 #### Required Secrets
 
-| Secret Name      | Description                  | Example                          |
-| ---------------- | ---------------------------- | -------------------------------- |
-| `KUBE_CONFIG`    | Base64 encoded kubeconfig    | `cat ~/.kube/config \| base64`   |
-| `DATABASE_URL`   | PostgreSQL connection string | `postgresql://user:pass@host/db` |
-| `SECRET_KEY`     | JWT signing key              | `openssl rand -hex 32`           |
-| `ENCRYPTION_KEY` | Fernet encryption key        | `openssl rand -hex 32`           |
-| `REDIS_PASSWORD` | Redis password               | `openssl rand -hex 32`           |
+| Secret Name         | Description                  | How to Generate                                                                             |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `KUBE_CONFIG`       | Base64 encoded kubeconfig    | `cat ~/.kube/config \| base64`                                                              |
+| `DATABASE_URL`      | PostgreSQL connection string | `postgresql://user:pass@host/db`                                                            |
+| `SECRET_KEY`        | JWT signing key              | `openssl rand -hex 32`                                                                      |
+| `ENCRYPTION_KEY`    | Fernet encryption key        | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `REDIS_PASSWORD`    | Redis password               | Get from your Redis deployment                                                              |
+| `PRODUCTION_DOMAIN` | Your domain name             | `gibster.yourdomain.com`                                                                    |
 
 #### Optional Secrets
 
@@ -51,70 +79,54 @@ Go to Settings → Secrets → Actions and add:
 | `GIBNEY_PASSWORD` | Default Gibney password | None    |
 | `SENTRY_DSN`      | Error tracking          | None    |
 
-### 3. Configure GitHub Actions
+### How Secrets Work
 
-The deployment workflow (`.github/workflows/deploy.yml`) runs on:
+All production secrets are automatically injected from GitHub repository secrets during deployment:
 
-- Push to `main` branch
-- Pull requests to `main`
+1. **GitHub Actions reads secrets** from repository settings
+2. **Creates/updates Kubernetes secret** (`gibster-secrets`) in the cluster
+3. **Deployments reference** the secret for environment variables
 
-## Kubernetes Setup
+Benefits:
 
-### 1. Create Namespace
-
-```bash
-kubectl create namespace gibster
-```
-
-### 2. Manual Deployment (Optional)
-
-#### Development Environment
-
-```bash
-# Apply development configuration
-kubectl apply -k k8s/overlays/development
-
-# Check deployment
-kubectl get pods -n gibster
-kubectl get services -n gibster
-```
-
-#### Production Environment
-
-```bash
-# Create secrets manually (if not using CI/CD)
-kubectl create secret generic gibster-secrets \
-  --namespace=gibster \
-  --from-literal=database-url="$DATABASE_URL" \
-  --from-literal=secret-key="$SECRET_KEY" \
-  --from-literal=encryption-key="$ENCRYPTION_KEY" \
-  --from-literal=redis-password="$REDIS_PASSWORD"
-
-# Apply production configuration
-kubectl apply -k k8s/overlays/production
-```
+- No secrets stored in code or Kubernetes manifests
+- Secrets managed entirely through GitHub UI
+- Each deployment recreates the secret with latest values
+- Changing a secret only requires updating GitHub and re-running the pipeline
 
 ## Automated CI/CD Pipeline
 
-### Pipeline Stages
+The deployment workflow (`.github/workflows/deploy.yml`) consists of three stages:
 
-1. **Test Stage**
+### 1. Test Stage
 
-   - Runs Python tests with pytest
-   - Runs frontend tests with Jest
-   - Checks code formatting (black, isort)
-   - Type checking (mypy, TypeScript)
+**Triggers:** All pushes and pull requests
 
-2. **Build Stage** (on main branch only)
+- Runs Python tests with pytest and coverage
+- Checks code formatting (black, isort)
+- Runs frontend tests with Jest
+- Type checks (mypy, TypeScript)
+- Lints frontend code
 
-   - Builds Docker images
-   - Tags with git SHA and 'latest'
-   - Pushes to GitHub Container Registry
+### 2. Build & Push Stage
 
-3. **Deploy Stage** (on main branch only)
-   - Updates Kubernetes secrets
-   - Applies manifests with new image tags
-   - Monitors rollout status
+**Triggers:** Merges to main branch only
+
+- Builds Docker images for backend and frontend
+- Pushes to GitHub Container Registry (ghcr.io)
+- Tags images with:
+  - Commit SHA (e.g., `ghcr.io/your-org/gibster-backend:abc123`)
+  - `latest` tag
+
+### 3. Deploy Stage
+
+**Triggers:** Merges to main branch only
+
+1. Generates ingress and certificate from templates using `PRODUCTION_DOMAIN`
+2. Creates/updates Kubernetes secrets from GitHub secrets
+3. Updates Kubernetes manifests with new image tags
+4. Applies changes to production cluster
+5. Monitors rollout status
 
 ### Triggering Deployment
 
@@ -131,41 +143,105 @@ Monitor deployment:
 - GitHub Actions: `https://github.com/<your-org>/gibster/actions`
 - Kubernetes: `kubectl get pods -n gibster -w`
 
+## Manual Deployment
+
+If you need to deploy without CI/CD:
+
+### 1. Build and Push Images
+
+```bash
+# Build images
+docker build -t ghcr.io/your-org/gibster-backend:latest ./backend
+docker build -t ghcr.io/your-org/gibster-frontend:latest ./frontend
+
+# Login to registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# Push images
+docker push ghcr.io/your-org/gibster-backend:latest
+docker push ghcr.io/your-org/gibster-frontend:latest
+```
+
+### 2. Create Kubernetes Namespace and Secrets
+
+```bash
+# Create namespace if needed
+kubectl create namespace gibster
+
+# Create secrets
+kubectl create secret generic gibster-secrets \
+  --namespace=gibster \
+  --from-literal=database-url="$DATABASE_URL" \
+  --from-literal=secret-key="$SECRET_KEY" \
+  --from-literal=encryption-key="$ENCRYPTION_KEY" \
+  --from-literal=redis-password="$REDIS_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### 3. Generate Domain-Specific Resources
+
+```bash
+cd k8s/overlays/production
+
+# Generate ingress from template
+export PRODUCTION_DOMAIN="your-domain.com"
+sed "s/\${PRODUCTION_DOMAIN}/$PRODUCTION_DOMAIN/g" ingress-template.yaml > ingress.yaml
+sed "s/\${PRODUCTION_DOMAIN}/$PRODUCTION_DOMAIN/g" certificate-template.yaml > certificate.yaml
+
+# Update kustomization.yaml to include generated files
+cat >> kustomization.yaml << EOF
+patchesStrategicMerge:
+- ingress.yaml
+- certificate.yaml
+EOF
+```
+
+### 4. Deploy Application
+
+```bash
+# Apply Kubernetes manifests
+kubectl apply -k k8s/overlays/production
+
+# Monitor deployment
+kubectl rollout status deployment/gibster-backend -n gibster
+kubectl rollout status deployment/gibster-frontend -n gibster
+kubectl rollout status deployment/gibster-celery -n gibster
+```
+
+### 5. Verify Deployment
+
+```bash
+# Check pod status
+kubectl get pods -n gibster
+
+# View logs
+kubectl logs -n gibster -l component=backend -f
+
+# Check ingress
+kubectl get ingress -n gibster
+```
+
+The application will be available at `https://<your-domain>`
+
 ## Production Configuration
 
 ### 1. Domain Setup
 
-Update ingress configuration in `k8s/base/ingress.yaml`:
+The domain is configured via the `PRODUCTION_DOMAIN` GitHub secret. During deployment, the CI/CD pipeline will:
 
-```yaml
-spec:
-  rules:
-    - host: gibster.yourdomain.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: gibster-frontend
-                port:
-                  number: 80
-```
+1. Generate ingress configuration from the template files
+2. Replace `${PRODUCTION_DOMAIN}` placeholders with your actual domain
+3. Apply the configuration to your cluster
+
+Make sure your DNS is configured to point to your cluster's ingress controller.
 
 ### 2. SSL/TLS Configuration
 
-Using cert-manager (recommended):
+TLS certificates are automatically provisioned by cert-manager using Let's Encrypt. The certificate configuration is generated from templates during deployment and will include:
 
-```yaml
-metadata:
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-    - hosts:
-        - gibster.yourdomain.com
-      secretName: gibster-tls
-```
+- Your production domain
+- www subdomain (if applicable)
+- Automatic renewal before expiration
 
 ### 3. Database Configuration
 
@@ -175,118 +251,145 @@ PostgreSQL is deployed as a StatefulSet with:
 - Automated backups (configure separately)
 - Connection pooling via PgBouncer (optional)
 
-### 4. Scaling Configuration
+Connection strings:
 
-#### Horizontal Pod Autoscaling
+- **Read-Write:** `postgres-cluster-rw.database.svc.cluster.local:5432`
+- **Read-Only:** `postgres-cluster-ro.database.svc.cluster.local:5432`
 
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: gibster-backend-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: gibster-backend
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+### 4. Redis Configuration
+
+Redis connection:
+
+- **Master:** `redis.redis.svc.cluster.local:6379`
+- **Replicas:** `redis-replica.redis.svc.cluster.local:6379`
+
+## Architecture
+
+### Kubernetes Manifest Structure
+
+```
+k8s/
+├── base/                           # Base Kubernetes resources
+│   ├── namespace.yaml              # gibster namespace
+│   ├── backend-deployment.yaml     # FastAPI backend
+│   ├── frontend-deployment.yaml    # Next.js frontend
+│   ├── celery-deployment.yaml      # Background worker
+│   ├── configmap.yaml              # Shared configuration
+│   └── kustomization.yaml
+└── overlays/
+    ├── development/                # Local development settings
+    │   ├── deployment-patches.yaml
+    │   ├── secrets.yaml            # Development secrets
+    │   └── kustomization.yaml
+    └── production/                 # Production settings
+        ├── deployment-patches.yaml # Resource limits, replicas
+        ├── ingress-template.yaml   # Ingress template
+        ├── certificate-template.yaml # Certificate template
+        └── kustomization.yaml
 ```
 
-#### Resource Limits
+### Deployed Resources
 
-Configure in deployment patches:
+The deployment creates these resources in the `gibster` namespace:
 
-```yaml
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
+```
+gibster/
+├── Deployments
+│   ├── gibster-backend      # FastAPI application
+│   ├── gibster-frontend     # Next.js application
+│   └── gibster-celery       # Background worker
+├── Services
+│   ├── gibster-backend      # ClusterIP service
+│   └── gibster-frontend     # ClusterIP service
+├── ConfigMap
+│   └── gibster-config       # Environment configuration
+├── Secret
+│   └── gibster-secrets      # Created by CI/CD
+├── Ingress
+│   └── gibster-ingress      # HTTPS routing
+└── Certificate
+    └── gibster-cert         # TLS certificate
 ```
 
-## Monitoring
+## Monitoring & Troubleshooting
 
-### 1. Application Health
+### Check Deployment Status
 
 ```bash
-# Check pod status
-kubectl get pods -n gibster
+# Overall status
+kubectl get all -n gibster
 
-# View pod logs
-kubectl logs -n gibster deployment/gibster-backend -f
-
-# Check service endpoints
-kubectl get endpoints -n gibster
+# Detailed pod information
+kubectl describe pod -n gibster -l component=backend
 ```
 
-### 2. Health Checks
-
-Backend health endpoint:
+### View Logs
 
 ```bash
-curl https://gibster.yourdomain.com/health
+# Backend logs
+kubectl logs -n gibster -l component=backend -f
+
+# Frontend logs
+kubectl logs -n gibster -l component=frontend -f
+
+# Celery worker logs
+kubectl logs -n gibster -l component=celery -f
+
+# Previous logs (if pod restarted)
+kubectl logs -n gibster -l component=backend --previous
 ```
 
-### 3. Metrics and Logs
+### Health Checks
 
 ```bash
-# Resource usage
-kubectl top pods -n gibster
+# From inside cluster
+kubectl run -it --rm debug --image=busybox --restart=Never -n gibster -- \
+  wget -qO- http://gibster-backend:8000/health
 
-# Recent events
-kubectl get events -n gibster --sort-by='.lastTimestamp'
-
-# Describe pod for details
-kubectl describe pod <pod-name> -n gibster
+# Port forward for local testing
+kubectl port-forward -n gibster svc/gibster-backend 8000:8000
+curl http://localhost:8000/health
 ```
-
-## Troubleshooting
 
 ### Common Issues
 
-#### Pods Not Starting
+#### Database Connection Failed
 
 ```bash
-# Check pod events
-kubectl describe pod <pod-name> -n gibster
+# Test database connectivity
+kubectl run -it --rm debug --image=postgres:15 --restart=Never -n gibster -- \
+  psql "$DATABASE_URL"
 
-# Check logs
-kubectl logs <pod-name> -n gibster --previous
+# Check secret
+kubectl get secret gibster-secrets -n gibster -o yaml
 ```
 
-#### Database Connection Issues
+#### Redis Connection Failed
 
 ```bash
-# Verify secret exists
-kubectl get secret gibster-secrets -n gibster
+# Test Redis connectivity
+kubectl run -it --rm debug --image=redis:7 --restart=Never -n gibster -- \
+  redis-cli -h redis.redis.svc.cluster.local -a $REDIS_PASSWORD ping
+```
 
-# Test database connection
-kubectl exec -it deployment/gibster-backend -n gibster -- python -c "
-from sqlalchemy import create_engine
-engine = create_engine('$DATABASE_URL')
-engine.connect()
-print('Connected!')
-"
+#### Certificate Issues
+
+```bash
+# Check certificate status
+kubectl describe certificate gibster-cert -n gibster
+
+# Check cert-manager logs
+kubectl logs -n cert-manager deployment/cert-manager
 ```
 
 #### Image Pull Errors
 
 ```bash
-# Check image availability
-docker pull ghcr.io/<your-org>/gibster-backend:latest
+# Check if images exist
+docker pull ghcr.io/your-org/gibster-backend:latest
 
-# Verify image pull secrets
-kubectl get secrets -n gibster
+# Check events
+kubectl get events -n gibster --sort-by='.lastTimestamp'
 ```
 
 ### Rollback Procedure
@@ -302,12 +405,50 @@ kubectl rollout undo deployment/gibster-backend -n gibster
 kubectl rollout undo deployment/gibster-backend -n gibster --to-revision=2
 ```
 
-## Backup and Recovery
+## Scaling
 
-### Database Backup
+### Horizontal Scaling
 
 ```bash
-# Manual backup
+# Scale manually
+kubectl scale deployment gibster-backend -n gibster --replicas=3
+kubectl scale deployment gibster-celery -n gibster --replicas=5
+
+# Or use HPA (Horizontal Pod Autoscaler)
+kubectl autoscale deployment gibster-backend -n gibster \
+  --min=2 --max=10 --cpu-percent=80
+```
+
+### Resource Adjustments
+
+Edit `k8s/overlays/production/deployment-patches.yaml`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gibster-backend
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: backend
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+```
+
+## Backup and Recovery
+
+### Manual Database Backup
+
+```bash
+# Create backup
 kubectl exec deployment/postgres -n gibster -- \
   pg_dump -U postgres gibster > backup-$(date +%Y%m%d).sql
 
@@ -318,13 +459,14 @@ kubectl exec -i deployment/postgres -n gibster -- \
 
 ### Automated Backups
 
-Configure CronJob for automated backups:
+Create a CronJob for automated backups:
 
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres-backup
+  namespace: gibster
 spec:
   schedule: "0 2 * * *" # Daily at 2 AM
   jobTemplate:
@@ -340,6 +482,10 @@ spec:
               volumeMounts:
                 - name: backup
                   mountPath: /backup
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: backup-pvc
 ```
 
 ## Security Best Practices
@@ -358,6 +504,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: gibster-backend-netpol
+  namespace: gibster
 spec:
   podSelector:
     matchLabels:
@@ -372,6 +519,15 @@ spec:
             matchLabels:
               app: gibster
               component: frontend
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: redis
 ```
 
 ### 3. RBAC Configuration
@@ -381,11 +537,26 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: gibster-role
+  namespace: gibster
 rules:
   - apiGroups: [""]
     resources: ["pods", "services"]
     verbs: ["get", "list", "watch"]
 ```
+
+### 4. Security Checklist
+
+Before going to production:
+
+- [ ] Generated secure `SECRET_KEY` and `ENCRYPTION_KEY`
+- [ ] Set strong database password
+- [ ] Configured `PRODUCTION_DOMAIN` secret
+- [ ] Set up all GitHub Actions secrets
+- [ ] Configured proper resource limits
+- [ ] Reviewed network policies
+- [ ] Enabled monitoring and alerting
+- [ ] Set up backup procedures
+- [ ] Configured image scanning in CI/CD
 
 ## Maintenance
 
@@ -395,8 +566,8 @@ rules:
 
    ```bash
    # Update container images
-   docker pull ghcr.io/<your-org>/gibster-backend:latest
-   docker pull ghcr.io/<your-org>/gibster-frontend:latest
+   docker pull ghcr.io/your-org/gibster-backend:latest
+   docker pull ghcr.io/your-org/gibster-frontend:latest
    ```
 
 2. **Clean Up Old Resources**
@@ -406,34 +577,69 @@ rules:
    kubectl delete rs -n gibster $(kubectl get rs -n gibster | grep "0  0  0" | awk '{print $1}')
    ```
 
-3. **Monitor Disk Usage**
+3. **Monitor Resource Usage**
+
    ```bash
+   # Check resource usage
+   kubectl top pods -n gibster
+
    # Check PVC usage
    kubectl exec deployment/postgres -n gibster -- df -h /var/lib/postgresql/data
    ```
 
 ### Upgrade Procedure
 
-1. **Test in development first**
-2. **Create database backup**
-3. **Apply new manifests**
-4. **Monitor rollout**
-5. **Verify functionality**
-6. **Rollback if needed**
+1. Test in development environment first
+2. Create database backup
+3. Review changelog and migration notes
+4. Apply new manifests
+5. Monitor rollout
+6. Verify functionality
+7. Rollback if needed
 
-## Cost Optimization
+### Cost Optimization
 
-### Tips for Reducing Costs
+- **Right-size resources**: Monitor actual usage and adjust requests/limits
+- **Use spot instances**: For non-critical workloads
+- **Implement autoscaling**: Scale down during low usage
+- **Optimize images**: Use multi-stage builds, minimize size
+- **Clean up unused resources**: Remove old deployments, PVCs
 
-1. **Right-size resources**: Monitor actual usage and adjust requests/limits
-2. **Use spot instances**: For non-critical workloads
-3. **Implement autoscaling**: Scale down during low usage
-4. **Optimize images**: Use multi-stage builds, minimize size
-5. **Clean up unused resources**: Remove old deployments, PVCs
+## Local Development Deployment
+
+For local Kubernetes development:
+
+```bash
+# Apply development configuration
+kubectl apply -k k8s/overlays/development
+
+# This uses:
+# - Development secrets (hardcoded for convenience)
+# - Single replicas
+# - Reduced resource requirements
+# - No TLS certificates
+```
+
+### Quick Kubernetes Commands
+
+```bash
+# Apply configurations using Kustomize
+kubectl apply -k k8s/overlays/development    # Development
+kubectl apply -k k8s/overlays/production     # Production
+
+# View generated manifests without applying
+kubectl kustomize k8s/overlays/development
+kubectl kustomize k8s/overlays/production
+
+# Delete all resources
+kubectl delete -k k8s/overlays/development
+kubectl delete -k k8s/overlays/production
+```
 
 ## Additional Resources
 
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [cert-manager Documentation](https://cert-manager.io/docs/)
 - [FastAPI Deployment](https://fastapi.tiangolo.com/deployment/)
 - [Next.js Deployment](https://nextjs.org/docs/deployment)

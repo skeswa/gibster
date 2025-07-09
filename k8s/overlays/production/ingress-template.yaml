@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gibster-ingress
+  namespace: gibster
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - ${PRODUCTION_DOMAIN}
+    - www.${PRODUCTION_DOMAIN}
+    secretName: gibster-tls
+  rules:
+  - host: ${PRODUCTION_DOMAIN}
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-frontend
+            port:
+              number: 3000
+  - host: www.${PRODUCTION_DOMAIN}
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gibster-frontend
+            port:
+              number: 3000
