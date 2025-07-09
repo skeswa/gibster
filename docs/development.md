@@ -285,7 +285,7 @@ FastAPI automatically generates documentation:
 
 3. **Use in Application**:
    ```typescript
-   import { MyComponent } from "./components/MyComponent";
+   import { MyComponent } from './components/MyComponent';
    ```
 
 ### State Management
@@ -303,15 +303,15 @@ API calls are made using the fetch API with proper error handling:
 ```typescript
 const syncBookings = async () => {
   try {
-    const response = await fetch("/api/v1/user/sync", {
-      method: "POST",
+    const response = await fetch('/api/v1/user/sync', {
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
     if (!response.ok) {
-      throw new Error("Sync failed");
+      throw new Error('Sync failed');
     }
 
     const data = await response.json();

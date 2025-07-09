@@ -16,7 +16,9 @@ Gibster synchronizes Gibney dance space bookings with personal calendars. It con
 **⚠️ IMPORTANT**: Before making any architectural or design decisions, you MUST consult these essential documentation files:
 
 ### 📐 Architecture Documentation (`docs/architecture.md`)
+
 This comprehensive document provides:
+
 - System overview with detailed component diagrams
 - Tech stack specifications and justifications
 - Core component designs (authentication, data models, scraper, calendar integration)
@@ -27,7 +29,9 @@ This comprehensive document provides:
 - Design decisions and future considerations
 
 ### 📋 Requirements Documentation (`docs/requirements.md`)
+
 This detailed requirements specification includes:
+
 - Complete functional requirements with requirement IDs (FR-x.x.x)
 - Non-functional requirements covering security, performance, reliability, usability, maintainability, compatibility, and operations
 - Technical constraints and infrastructure requirements
@@ -35,6 +39,7 @@ This detailed requirements specification includes:
 - Traceability through requirement identifiers
 
 **Always reference these documents when:**
+
 - Making architectural changes or design decisions
 - Implementing new features or modifying existing ones
 - Evaluating technical approaches or trade-offs
@@ -67,6 +72,7 @@ cd backend && alembic upgrade head       # Run migrations
 ### Testing
 
 #### Test Structure
+
 - `backend/tests/test_*.py` - Unit and integration tests (run automatically in CI)
 - `backend/tests/test_scraper_e2e.py` - End-to-end tests against real Gibney website (manual only)
 - `frontend/__tests__/` - Frontend component and integration tests
@@ -100,6 +106,7 @@ The E2E tests connect to the real Gibney website to verify the scraper works cor
 **Setup:**
 
 Option 1: Add Gibney credentials to `backend/.env` file:
+
 ```bash
 # Add to backend/.env
 GIBNEY_EMAIL=your-email@example.com
@@ -107,6 +114,7 @@ GIBNEY_PASSWORD=your-password
 ```
 
 Option 2: Set environment variables:
+
 ```bash
 export GIBNEY_EMAIL="your-email@example.com"
 export GIBNEY_PASSWORD="your-password"
@@ -115,6 +123,7 @@ export GIBNEY_PASSWORD="your-password"
 Note: These are the same credentials used for development/testing throughout the application.
 
 **Run E2E tests:**
+
 ```bash
 # Using the test runner (will automatically load from backend/.env)
 python scripts/run_tests.py --e2e
@@ -124,6 +133,7 @@ python backend/tests/test_scraper_e2e.py
 ```
 
 The E2E tests will:
+
 1. Test login functionality with visual browser (headless=False)
 2. Verify post-login navigation
 3. Test full booking scraping
@@ -132,12 +142,14 @@ The E2E tests will:
 #### Test Markers
 
 Backend tests use pytest markers for categorization:
+
 - `@pytest.mark.unit` - Fast unit tests (no external dependencies)
 - `@pytest.mark.integration` - Tests that may use database or other services
 
 #### Debugging Scraper Issues
 
 When the scraper fails, it creates debug files in the project root:
+
 - `debug_*.png` - Screenshots of the page at failure point
 - `debug_*.html` - HTML content of the page for inspection
 
@@ -175,6 +187,7 @@ npm run format                  # Prettier formatting
 #### Theme System
 
 The frontend includes a comprehensive dark mode theme system built with:
+
 - **next-themes**: For theme management and persistence
 - **Tailwind CSS**: With class-based dark mode (`darkMode: ["class"]`)
 - **CSS Variables**: For dynamic color theming
@@ -182,16 +195,19 @@ The frontend includes a comprehensive dark mode theme system built with:
 ##### Theme Components
 
 **ThemeProvider** (`/src/app/providers/ThemeProvider.tsx`)
+
 - Wraps the application and provides theme context
 - Enables system preference detection and localStorage persistence
 - Prevents flash on reload with `suppressHydrationWarning`
 
 **Theme Toggle Components**:
+
 - `ThemeToggle` - Button group for light/dark/system selection
 - `ThemeDropdown` - Dropdown menu for theme switching
 - `ThemeSelect` - Native select element (most accessible)
 
 **Custom Hook** (`/src/hooks/useThemeState.ts`):
+
 ```typescript
 const { theme, setTheme, currentTheme, isDarkMode, mounted } = useThemeState();
 ```
@@ -199,22 +215,29 @@ const { theme, setTheme, currentTheme, isDarkMode, mounted } = useThemeState();
 ##### Usage Examples
 
 Basic theme toggle:
+
 ```tsx
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 function Header() {
-  return <header><ThemeToggle /></header>;
+  return (
+    <header>
+      <ThemeToggle />
+    </header>
+  );
 }
 ```
 
 Theme-aware styling:
+
 ```tsx
-<div className="bg-white dark:bg-gray-900">
-  <p className="text-black dark:text-white">Theme-aware text</p>
+<div className='bg-white dark:bg-gray-900'>
+  <p className='text-black dark:text-white'>Theme-aware text</p>
 </div>
 ```
 
 Conditional rendering:
+
 ```tsx
 const { isDarkMode, mounted } = useThemeState();
 if (!mounted) return null; // Avoid hydration mismatch

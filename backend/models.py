@@ -28,7 +28,11 @@ class User(Base):
     calendar_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     last_sync_at = Column(DateTime, nullable=True)  # Track last sync time
 
     # Relationship
@@ -99,7 +103,9 @@ class SyncJob(Base):
     completed_at = Column(DateTime, nullable=True)
     triggered_manually = Column(Boolean, default=False)  # Track if sync was manual
     last_updated_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )  # Track last activity
 
     # Relationships
@@ -119,7 +125,9 @@ class SyncJobLog(Base):
     sync_job_id = Column(
         UUID(as_uuid=True), ForeignKey("sync_jobs.id"), nullable=False, index=True
     )
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
+    )
     level = Column(String, nullable=False)  # 'INFO', 'WARNING', 'ERROR', 'DEBUG'
     message = Column(Text, nullable=False)
     details = Column(

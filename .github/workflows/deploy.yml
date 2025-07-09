@@ -162,6 +162,8 @@ jobs:
           --from-literal=database-url="${{ secrets.DATABASE_URL }}" \
           --from-literal=secret-key="${{ secrets.SECRET_KEY }}" \
           --from-literal=encryption-key="${{ secrets.ENCRYPTION_KEY }}" \
+          --from-literal=redis-host="${{ secrets.REDIS_HOST }}" \
+          --from-literal=redis-port="${{ secrets.REDIS_PORT }}" \
           --from-literal=redis-password="${{ secrets.REDIS_PASSWORD }}"
 
     - name: Deploy to Kubernetes

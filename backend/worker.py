@@ -21,19 +21,15 @@ load_dotenv(dotenv_path=env_path)
 logger = get_logger("worker")
 
 # Celery configuration - make Redis optional for local development
-# Support both REDIS_URL format and separate REDIS_HOST/PASSWORD
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-# Build Redis URL from components if not directly provided
-if os.getenv("REDIS_URL"):
-    REDIS_URL = os.getenv("REDIS_URL")
+# Build Redis URL from components
+if REDIS_PASSWORD:
+    REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 else:
-    if REDIS_PASSWORD:
-        REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
-    else:
-        REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+    REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
 # Check if we're in development mode without Redis
 USE_CELERY = os.getenv("USE_CELERY", "true").lower() == "true"

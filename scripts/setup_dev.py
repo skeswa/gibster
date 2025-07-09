@@ -60,7 +60,8 @@ def install_dependencies():
 
     # Install requirements
     run_command(
-        f"{pip_path} install -r backend/requirements.txt", "Installing Python dependencies"
+        f"{pip_path} install -r backend/requirements.txt",
+        "Installing Python dependencies",
     )
 
     # Install Playwright browsers
@@ -75,7 +76,7 @@ def setup_environment_file():
     # Create backend/.env
     backend_env_file = Path("backend/.env")
     backend_env_example = Path("backend/.env.example")
-    
+
     if not backend_env_file.exists() and backend_env_example.exists():
         shutil.copy(backend_env_example, backend_env_file)
         print("✅ Created backend/.env file from backend/.env.example")
@@ -83,19 +84,23 @@ def setup_environment_file():
     elif backend_env_file.exists():
         print("✅ backend/.env file already exists")
     else:
-        print("⚠️  No backend/.env.example found, you may need to create backend/.env manually")
-    
+        print(
+            "⚠️  No backend/.env.example found, you may need to create backend/.env manually"
+        )
+
     # Create frontend/.env.local
     frontend_env_file = Path("frontend/.env.local")
     frontend_env_example = Path("frontend/.env.example")
-    
+
     if not frontend_env_file.exists() and frontend_env_example.exists():
         shutil.copy(frontend_env_example, frontend_env_file)
         print("✅ Created frontend/.env.local file from frontend/.env.example")
     elif frontend_env_file.exists():
         print("✅ frontend/.env.local file already exists")
     else:
-        print("⚠️  No frontend/.env.example found, creating default frontend/.env.local")
+        print(
+            "⚠️  No frontend/.env.example found, creating default frontend/.env.local"
+        )
 
 
 def initialize_database():
@@ -111,16 +116,20 @@ def initialize_database():
     env["PYTHONPATH"] = os.getcwd()
 
     result = subprocess.run(
-        [python_path, "-c", "from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')"],
+        [
+            python_path,
+            "-c",
+            "from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')",
+        ],
         capture_output=True,
         text=True,
-        env=env
+        env=env,
     )
-    
+
     if result.returncode != 0:
         print(f"❌ Initializing SQLite database failed: {result.stderr}")
         return None
-    
+
     print(f"✅ Initializing SQLite database completed successfully")
     return result
 

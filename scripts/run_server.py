@@ -14,8 +14,10 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Load environment variables from backend/.env
-backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend')
-env_path = os.path.join(backend_dir, '.env')
+backend_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"
+)
+env_path = os.path.join(backend_dir, ".env")
 load_dotenv(dotenv_path=env_path)
 
 

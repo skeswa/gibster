@@ -23,7 +23,7 @@ class TestCalendarUrlGeneration:
         user.calendar_uuid = uuid.uuid4()
         return user
 
-    @pytest.fixture 
+    @pytest.fixture
     def client(self):
         """Create test client"""
         return TestClient(app)
@@ -32,15 +32,15 @@ class TestCalendarUrlGeneration:
         """Test calendar URL generation falls back to request base URL"""
         # Mock the authentication
         app.dependency_overrides[get_current_user] = lambda: mock_user
-        
+
         try:
             # Ensure FRONTEND_BASE_URL is not set
             with patch.dict(os.environ, {}, clear=True):
                 response = client.get("/api/v1/user/calendar_url")
-                
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Should use the test client base URL
             expected_url = f"http://testserver/calendar/{mock_user.calendar_uuid}.ics"
             assert data["calendar_url"] == expected_url
@@ -53,16 +53,16 @@ class TestCalendarUrlGeneration:
         """Test calendar URL generation uses FRONTEND_BASE_URL when set"""
         # Mock the authentication
         app.dependency_overrides[get_current_user] = lambda: mock_user
-        
+
         try:
             # Set FRONTEND_BASE_URL
             frontend_url = "https://app.gibster.com"
             with patch.dict(os.environ, {"FRONTEND_BASE_URL": frontend_url}):
                 response = client.get("/api/v1/user/calendar_url")
-                
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Should use the frontend URL
             expected_url = f"{frontend_url}/calendar/{mock_user.calendar_uuid}.ics"
             assert data["calendar_url"] == expected_url
@@ -74,18 +74,20 @@ class TestCalendarUrlGeneration:
         """Test calendar URL generation handles trailing slashes correctly"""
         # Mock the authentication
         app.dependency_overrides[get_current_user] = lambda: mock_user
-        
+
         try:
             # Set FRONTEND_BASE_URL with trailing slash
             frontend_url = "https://app.gibster.com/"
             with patch.dict(os.environ, {"FRONTEND_BASE_URL": frontend_url}):
                 response = client.get("/api/v1/user/calendar_url")
-                
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Should strip the trailing slash
-            expected_url = f"https://app.gibster.com/calendar/{mock_user.calendar_uuid}.ics"
+            expected_url = (
+                f"https://app.gibster.com/calendar/{mock_user.calendar_uuid}.ics"
+            )
             assert data["calendar_url"] == expected_url
         finally:
             app.dependency_overrides.clear()
@@ -94,21 +96,27 @@ class TestCalendarUrlGeneration:
         """Test calendar URL generation with different protocols"""
         # Mock the authentication
         app.dependency_overrides[get_current_user] = lambda: mock_user
-        
+
         try:
             # Test with HTTP
             with patch.dict(os.environ, {"FRONTEND_BASE_URL": "http://localhost:3000"}):
                 response = client.get("/api/v1/user/calendar_url")
                 assert response.status_code == 200
                 data = response.json()
-                assert data["calendar_url"].startswith("http://localhost:3000/calendar/")
-            
+                assert data["calendar_url"].startswith(
+                    "http://localhost:3000/calendar/"
+                )
+
             # Test with HTTPS
-            with patch.dict(os.environ, {"FRONTEND_BASE_URL": "https://secure.gibster.com"}):
+            with patch.dict(
+                os.environ, {"FRONTEND_BASE_URL": "https://secure.gibster.com"}
+            ):
                 response = client.get("/api/v1/user/calendar_url")
                 assert response.status_code == 200
                 data = response.json()
-                assert data["calendar_url"].startswith("https://secure.gibster.com/calendar/")
+                assert data["calendar_url"].startswith(
+                    "https://secure.gibster.com/calendar/"
+                )
         finally:
             app.dependency_overrides.clear()
 
@@ -120,7 +128,7 @@ class TestCalendarUrlGeneration:
     #     # Mock at the location where it's used in main.py
     #     with patch("backend.main.get_user_calendar", return_value="BEGIN:VCALENDAR\nEND:VCALENDAR") as mock_cal:
     #         response = client.get(f"/calendar/{mock_user.calendar_uuid}.ics")
-    #         
+    #
     #     assert response.status_code == 200
     #     assert response.headers["content-type"] == "text/calendar"
     #     assert "gibney-bookings" in response.headers.get("content-disposition", "").lower()

@@ -85,7 +85,8 @@ def install_dependencies():
 
     # Install requirements
     run_command(
-        f"{pip_path} install -r backend/requirements.txt", "Installing Python dependencies"
+        f"{pip_path} install -r backend/requirements.txt",
+        "Installing Python dependencies",
     )
 
     # Install Playwright browsers
@@ -127,23 +128,25 @@ def create_env_file():
     # Create backend/.env
     backend_env_file = Path("backend/.env")
     backend_env_example = Path("backend/.env.example")
-    
+
     if not backend_env_file.exists():
         if backend_env_example.exists():
             shutil.copy(backend_env_example, backend_env_file)
             print("✅ Created backend/.env file from backend/.env.example")
         else:
-            print("⚠️  backend/.env.example not found, please create backend/.env manually")
-        
+            print(
+                "⚠️  backend/.env.example not found, please create backend/.env manually"
+            )
+
         print("⚠️  IMPORTANT: Edit backend/.env file and set your actual values")
         print("   Generate secure SECRET_KEY and ENCRYPTION_KEY for production")
     else:
         print("✅ backend/.env file already exists")
-    
+
     # Create frontend/.env.local
     frontend_env_file = Path("frontend/.env.local")
     frontend_env_example = Path("frontend/.env.example")
-    
+
     if not frontend_env_file.exists():
         if frontend_env_example.exists():
             shutil.copy(frontend_env_example, frontend_env_file)
@@ -173,16 +176,20 @@ def initialize_database():
     env["PYTHONPATH"] = os.getcwd()
 
     result = subprocess.run(
-        [python_path, "-c", "from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')"],
+        [
+            python_path,
+            "-c",
+            "from backend.database import engine; from backend.models import Base; Base.metadata.create_all(bind=engine); print('Database tables created')",
+        ],
         capture_output=True,
         text=True,
-        env=env
+        env=env,
     )
-    
+
     if result.returncode != 0:
         print(f"❌ Initializing SQLite database failed: {result.stderr}")
         return None
-    
+
     print(f"✅ Initializing SQLite database completed successfully")
     return result
 

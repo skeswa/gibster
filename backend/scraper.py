@@ -746,9 +746,11 @@ class GibneyScraper:
             no_new_content_count = 0
             # Increased threshold for more patient scrolling
             MAX_NO_NEW_CONTENT_ATTEMPTS = 4  # Increased from 2 to 4
-            
+
             # Log initial state
-            logger.info(f"Starting infinite scroll scraping (max attempts: {max_scroll_attempts})")
+            logger.info(
+                f"Starting infinite scroll scraping (max attempts: {max_scroll_attempts})"
+            )
 
             while scroll_count < max_scroll_attempts:
                 scroll_start_time = datetime.now(timezone.utc)
@@ -856,7 +858,9 @@ class GibneyScraper:
                                 start_dt = datetime.strptime(
                                     start_time_str, date_format
                                 ).replace(tzinfo=timezone.utc)
-                                end_dt = datetime.strptime(end_time_str, date_format).replace(tzinfo=timezone.utc)
+                                end_dt = datetime.strptime(
+                                    end_time_str, date_format
+                                ).replace(tzinfo=timezone.utc)
                                 break
                             except ValueError:
                                 continue
@@ -927,7 +931,9 @@ class GibneyScraper:
                             try:
                                 screenshot_path = f"debug_scroll_stop_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                                 await self.page.screenshot(path=screenshot_path)
-                                logger.info(f"Saved debug screenshot to {screenshot_path}")
+                                logger.info(
+                                    f"Saved debug screenshot to {screenshot_path}"
+                                )
                             except Exception as e:
                                 logger.debug(f"Failed to save debug screenshot: {e}")
                         break
@@ -948,7 +954,7 @@ class GibneyScraper:
                     await self.page.evaluate(
                         "window.scrollTo(0, document.body.scrollHeight)"
                     )
-                    
+
                     # Small delay between scroll attempts
                     if scroll_attempt < 2:
                         await self.page.wait_for_timeout(200)
@@ -982,7 +988,7 @@ class GibneyScraper:
                     )
                 except Exception as e:
                     logger.debug(f"Table container scroll attempt failed: {e}")
-                
+
                 # Additional wait after scrolling to let the page register the scroll
                 await self.page.wait_for_timeout(500)
 
@@ -1136,7 +1142,9 @@ class GibneyScraper:
                         """
                     )
                     if end_of_list_indicators:
-                        logger.info(f"Found end-of-list indicator: {end_of_list_indicators}")
+                        logger.info(
+                            f"Found end-of-list indicator: {end_of_list_indicators}"
+                        )
                 except Exception as e:
                     logger.debug(f"End-of-list check failed: {e}")
 

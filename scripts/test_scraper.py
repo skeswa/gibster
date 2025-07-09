@@ -19,8 +19,10 @@ from backend.scraper import GibneyScraper
 def test_scraper():
     """Test the scraper functionality"""
     # Load environment variables from backend/.env
-    backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend')
-    env_path = os.path.join(backend_dir, '.env')
+    backend_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"
+    )
+    env_path = os.path.join(backend_dir, ".env")
     load_dotenv(dotenv_path=env_path)
 
     gibney_email = os.getenv("GIBNEY_EMAIL")

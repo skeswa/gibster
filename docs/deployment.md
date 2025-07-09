@@ -68,6 +68,8 @@ Go to Settings → Secrets → Actions and add:
 | `DATABASE_URL`      | PostgreSQL connection string | `postgresql://user:pass@host/db`                                                            |
 | `SECRET_KEY`        | JWT signing key              | `openssl rand -hex 32`                                                                      |
 | `ENCRYPTION_KEY`    | Fernet encryption key        | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `REDIS_HOST`        | Redis hostname/service       | `redis.redis.svc.cluster.local` (or your Redis service)                                     |
+| `REDIS_PORT`        | Redis port number            | `6379` (default Redis port)                                                                 |
 | `REDIS_PASSWORD`    | Redis password               | Get from your Redis deployment                                                              |
 | `PRODUCTION_DOMAIN` | Your domain name             | `gibster.yourdomain.com`                                                                    |
 
@@ -174,6 +176,8 @@ kubectl create secret generic gibster-secrets \
   --from-literal=database-url="$DATABASE_URL" \
   --from-literal=secret-key="$SECRET_KEY" \
   --from-literal=encryption-key="$ENCRYPTION_KEY" \
+  --from-literal=redis-host="$REDIS_HOST" \
+  --from-literal=redis-port="$REDIS_PORT" \
   --from-literal=redis-password="$REDIS_PASSWORD" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
@@ -436,11 +440,11 @@ spec:
         - name: backend
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "100m"
+              memory: '256Mi'
+              cpu: '100m'
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: '512Mi'
+              cpu: '500m'
 ```
 
 ## Backup and Recovery
@@ -468,7 +472,7 @@ metadata:
   name: postgres-backup
   namespace: gibster
 spec:
-  schedule: "0 2 * * *" # Daily at 2 AM
+  schedule: '0 2 * * *' # Daily at 2 AM
   jobTemplate:
     spec:
       template:
@@ -476,7 +480,7 @@ spec:
           containers:
             - name: backup
               image: postgres:13
-              command: ["/bin/sh", "-c"]
+              command: ['/bin/sh', '-c']
               args:
                 - pg_dump -h postgres -U postgres gibster > /backup/gibster-$(date +%Y%m%d).sql
               volumeMounts:
@@ -539,9 +543,9 @@ metadata:
   name: gibster-role
   namespace: gibster
 rules:
-  - apiGroups: [""]
-    resources: ["pods", "services"]
-    verbs: ["get", "list", "watch"]
+  - apiGroups: ['']
+    resources: ['pods', 'services']
+    verbs: ['get', 'list', 'watch']
 ```
 
 ### 4. Security Checklist

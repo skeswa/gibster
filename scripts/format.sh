@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Format all code in the repository
-# This script formats both Python backend and TypeScript/JavaScript frontend code
+# This script formats Python, TypeScript/JavaScript, shell scripts, and Markdown files
 
 set -e  # Exit on any error
 
@@ -42,9 +42,14 @@ print_status "Formatting Python code with black and isort..."
 
 if command -v black &> /dev/null; then
     print_status "Running black on Python files..."
-    black backend/ tests/ scripts/ --line-length 88 --target-version py38 || {
-        print_warning "Black formatting completed with warnings"
-    }
+    # Format each directory separately to avoid errors if one doesn't exist
+    for dir in backend scripts; do
+        if [ -d "$dir" ]; then
+            black "$dir/" --line-length 88 --target-version py38 || {
+                print_warning "Black formatting completed with warnings for $dir"
+            }
+        fi
+    done
     print_success "Black formatting completed"
 else
     print_error "black not found. Please install it with: pip install black==23.12.1"
@@ -53,9 +58,14 @@ fi
 
 if command -v isort &> /dev/null; then
     print_status "Running isort on Python files..."
-    isort backend/ tests/ scripts/ --profile black || {
-        print_warning "isort completed with warnings"
-    }
+    # Format each directory separately to avoid errors if one doesn't exist
+    for dir in backend scripts; do
+        if [ -d "$dir" ]; then
+            isort "$dir/" --profile black || {
+                print_warning "isort completed with warnings for $dir"
+            }
+        fi
+    done
     print_success "isort formatting completed"
 else
     print_error "isort not found. Please install it with: pip install isort==5.13.2"
@@ -99,6 +109,57 @@ else
     print_warning "shfmt not found. Install it for shell script formatting: brew install shfmt (macOS) or apt-get install shfmt (Ubuntu)"
 fi
 
+# Format Markdown files
+print_status "Formatting Markdown files with prettier..."
+
+# Check if prettier is available (use from frontend if needed)
+PRETTIER_CMD=""
+if command -v prettier &> /dev/null; then
+    PRETTIER_CMD="prettier"
+elif [ -f "frontend/node_modules/.bin/prettier" ]; then
+    PRETTIER_CMD="./frontend/node_modules/.bin/prettier"
+else
+    print_warning "Prettier not found. Skipping Markdown formatting."
+    print_warning "To enable Markdown formatting, install prettier globally: npm install -g prettier"
+fi
+
+if [ -n "$PRETTIER_CMD" ]; then
+    # Find all markdown files, excluding node_modules and venv directories
+    MD_FILES=$(find . -name "*.md" -type f \
+        -not -path "*/node_modules/*" \
+        -not -path "*/venv/*" \
+        -not -path "*/.venv/*" \
+        -not -path "*/htmlcov/*" \
+        -not -path "*/coverage/*" \
+        -not -path "*/.git/*" \
+        -not -path "*/build/*" \
+        -not -path "*/dist/*" \
+        2>/dev/null | sort)
+    
+    if [ -n "$MD_FILES" ]; then
+        MD_COUNT=$(echo "$MD_FILES" | wc -l | tr -d ' ')
+        print_status "Found $MD_COUNT Markdown files to format"
+        
+        # Use prettier config from frontend if available
+        PRETTIER_CONFIG=""
+        if [ -f "frontend/.prettierrc" ]; then
+            PRETTIER_CONFIG="--config frontend/.prettierrc"
+        fi
+        
+        # Format each markdown file
+        echo "$MD_FILES" | while read -r file; do
+            echo "  Formatting: $file"
+            $PRETTIER_CMD --write "$file" $PRETTIER_CONFIG --log-level silent || {
+                print_warning "Failed to format $file"
+            }
+        done
+        
+        print_success "Markdown formatting completed"
+    else
+        print_status "No Markdown files found to format"
+    fi
+fi
+
 print_success "🎉 All code formatting completed!"
 
 echo ""
@@ -109,6 +170,11 @@ if command -v shfmt &> /dev/null; then
     echo "  ✅ Shell scripts formatted with shfmt"
 else
     echo "  ⚠️  Shell scripts not formatted (shfmt not installed)"
+fi
+if [ -n "$PRETTIER_CMD" ]; then
+    echo "  ✅ Markdown files formatted with prettier"
+else
+    echo "  ⚠️  Markdown files not formatted (prettier not installed)"
 fi
 echo ""
 echo "💡 Tip: Run this script before committing to ensure consistent code formatting" 

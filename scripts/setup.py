@@ -56,7 +56,9 @@ def setup_environment():
 DATABASE_URL=sqlite:///./gibster.db
 SECRET_KEY=development-secret-key-change-in-production
 ENCRYPTION_KEY=development-encryption-key-change-in-production
-REDIS_URL=redis://localhost:6379/0
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 
 # Your Gibney credentials (for testing)
 GIBNEY_EMAIL=your-email@example.com
