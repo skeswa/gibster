@@ -11,6 +11,36 @@ Gibster synchronizes Gibney dance space bookings with personal calendars. It con
 - **Scraper**: Playwright-based Gibney website scraper
 - **Background Tasks**: Celery with Redis (production) or synchronous (development)
 
+## Critical Documentation
+
+**⚠️ IMPORTANT**: Before making any architectural or design decisions, you MUST consult these essential documentation files:
+
+### 📐 Architecture Documentation (`docs/architecture.md`)
+This comprehensive document provides:
+- System overview with detailed component diagrams
+- Tech stack specifications and justifications
+- Core component designs (authentication, data models, scraper, calendar integration)
+- Data flow diagrams for all major operations
+- Security architecture and performance optimizations
+- API design patterns and database schema
+- Deployment architecture for development and production
+- Design decisions and future considerations
+
+### 📋 Requirements Documentation (`docs/requirements.md`)
+This detailed requirements specification includes:
+- Complete functional requirements with requirement IDs (FR-x.x.x)
+- Non-functional requirements covering security, performance, reliability, usability, maintainability, compatibility, and operations
+- Technical constraints and infrastructure requirements
+- Clear acceptance criteria for all features
+- Traceability through requirement identifiers
+
+**Always reference these documents when:**
+- Making architectural changes or design decisions
+- Implementing new features or modifying existing ones
+- Evaluating technical approaches or trade-offs
+- Understanding system constraints and requirements
+- Ensuring consistency with established patterns
+
 ## Essential Commands
 
 **Important**: Always use absolute paths when running commands to avoid path confusion. The development SQLite database (`gibster_dev.db`) is located in the `backend/` directory and should only be accessed from there.
