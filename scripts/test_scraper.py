@@ -25,11 +25,11 @@ def test_scraper():
     env_path = os.path.join(backend_dir, ".env")
     load_dotenv(dotenv_path=env_path)
 
-    gibney_email = os.getenv("GIBNEY_EMAIL")
-    gibney_password = os.getenv("GIBNEY_PASSWORD")
+    gibney_email = os.getenv("TEST_GIBNEY_EMAIL")
+    gibney_password = os.getenv("TEST_GIBNEY_PASSWORD")
 
     if not gibney_email or not gibney_password:
-        print("Please set GIBNEY_EMAIL and GIBNEY_PASSWORD in your .env file")
+        print("Please set TEST_GIBNEY_EMAIL and TEST_GIBNEY_PASSWORD in your .env file")
         return
 
     try:

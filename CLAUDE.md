@@ -109,15 +109,15 @@ Option 1: Add Gibney credentials to `backend/.env` file:
 
 ```bash
 # Add to backend/.env
-GIBNEY_EMAIL=your-email@example.com
-GIBNEY_PASSWORD=your-password
+TEST_GIBNEY_EMAIL=your-email@example.com
+TEST_GIBNEY_PASSWORD=your-password
 ```
 
 Option 2: Set environment variables:
 
 ```bash
-export GIBNEY_EMAIL="your-email@example.com"
-export GIBNEY_PASSWORD="your-password"
+export TEST_GIBNEY_EMAIL="your-email@example.com"
+export TEST_GIBNEY_PASSWORD="your-password"
 ```
 
 Note: These are the same credentials used for development/testing throughout the application.

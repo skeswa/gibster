@@ -155,8 +155,8 @@ def run_e2e_tests(args):
     print("⚠️  These tests connect to the real Gibney website!")
 
     # Check for credentials (the test script will load from .env if available)
-    email = os.environ.get("GIBNEY_EMAIL")
-    password = os.environ.get("GIBNEY_PASSWORD")
+    email = os.environ.get("TEST_GIBNEY_EMAIL")
+    password = os.environ.get("TEST_GIBNEY_PASSWORD")
 
     # Check if .env file exists
     env_path = os.path.join("backend", ".env")
@@ -170,11 +170,11 @@ def run_e2e_tests(args):
             print("\n❌ E2E tests require Gibney credentials!")
             print("\nPlease provide credentials in one of these ways:")
             print("\n1. Add to backend/.env file:")
-            print("   GIBNEY_EMAIL=your-gibney-email")
-            print("   GIBNEY_PASSWORD=your-gibney-password")
+            print("   TEST_GIBNEY_EMAIL=your-gibney-email")
+            print("   TEST_GIBNEY_PASSWORD=your-gibney-password")
             print("\n2. Set environment variables:")
-            print("   export GIBNEY_EMAIL='your-gibney-email'")
-            print("   export GIBNEY_PASSWORD='your-gibney-password'")
+            print("   export TEST_GIBNEY_EMAIL='your-gibney-email'")
+            print("   export TEST_GIBNEY_PASSWORD='your-gibney-password'")
             print("\nThen run the tests again.")
             # Don't fail here - let the test script handle it
 

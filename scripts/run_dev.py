@@ -45,7 +45,7 @@ def check_env_file():
         content = f.read()
         if "your-email@example.com" in content or "your-password" in content:
             print("⚠️  Please update backend/.env with your actual Gibney credentials")
-            print("   Edit GIBNEY_EMAIL and GIBNEY_PASSWORD in backend/.env")
+            print("   Edit TEST_GIBNEY_EMAIL and TEST_GIBNEY_PASSWORD in backend/.env")
 
     return True
 

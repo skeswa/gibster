@@ -262,8 +262,8 @@ The E2E tests verify the scraper works with the real Gibney website.
 1. **Add Gibney credentials to `backend/.env`**:
 
    ```bash
-   GIBNEY_EMAIL=your-email@example.com
-   GIBNEY_PASSWORD=your-password
+   TEST_GIBNEY_EMAIL=your-email@example.com
+   TEST_GIBNEY_PASSWORD=your-password
    ```
 
 2. **Run E2E tests**:

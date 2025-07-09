@@ -31,18 +31,18 @@ async def test_gibney_login():
     print("\n=== Testing Gibney Login ===")
 
     # Get credentials from environment or prompt
-    email = os.environ.get("GIBNEY_EMAIL")
-    password = os.environ.get("GIBNEY_PASSWORD")
+    email = os.environ.get("TEST_GIBNEY_EMAIL")
+    password = os.environ.get("TEST_GIBNEY_PASSWORD")
 
     if not email or not password:
         print("\n⚠️  No test credentials found!")
         print("\nYou can provide credentials in one of these ways:")
         print("1. Add to backend/.env file:")
-        print("   GIBNEY_EMAIL=your-email@example.com")
-        print("   GIBNEY_PASSWORD=your-password")
+        print("   TEST_GIBNEY_EMAIL=your-email@example.com")
+        print("   TEST_GIBNEY_PASSWORD=your-password")
         print("\n2. Set environment variables:")
-        print("   export GIBNEY_EMAIL='your-email@example.com'")
-        print("   export GIBNEY_PASSWORD='your-password'")
+        print("   export TEST_GIBNEY_EMAIL='your-email@example.com'")
+        print("   export TEST_GIBNEY_PASSWORD='your-password'")
         print("\n3. Enter them now:")
         email = input("   Gibney email: ").strip()
         password = input("   Gibney password: ").strip()
@@ -142,8 +142,8 @@ async def test_gibney_scrape_rentals(max_rentals=None):
         print(f"(Limited to {max_rentals} rentals for faster testing)")
 
     # Get credentials
-    email = os.environ.get("GIBNEY_EMAIL")
-    password = os.environ.get("GIBNEY_PASSWORD")
+    email = os.environ.get("TEST_GIBNEY_EMAIL")
+    password = os.environ.get("TEST_GIBNEY_PASSWORD")
 
     if not email or not password:
         print("\n⚠️  No test credentials found!")

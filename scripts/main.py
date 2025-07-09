@@ -23,11 +23,11 @@ def main():
     )
     env_path = os.path.join(backend_dir, ".env")
     load_dotenv(dotenv_path=env_path)
-    gibney_email = os.getenv("GIBNEY_EMAIL")
-    gibney_password = os.getenv("GIBNEY_PASSWORD")
+    gibney_email = os.getenv("TEST_GIBNEY_EMAIL")
+    gibney_password = os.getenv("TEST_GIBNEY_PASSWORD")
 
     if not gibney_email or not gibney_password:
-        print("GIBNEY_EMAIL and GIBNEY_PASSWORD must be set in .env file.")
+        print("TEST_GIBNEY_EMAIL and TEST_GIBNEY_PASSWORD must be set in .env file.")
         return
 
     with sync_playwright() as p:

@@ -61,8 +61,8 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # Your Gibney credentials (for testing)
-GIBNEY_EMAIL=your-email@example.com
-GIBNEY_PASSWORD=your-password
+TEST_GIBNEY_EMAIL=your-email@example.com
+TEST_GIBNEY_PASSWORD=your-password
 """
             with open(".env", "w") as f:
                 f.write(env_content)

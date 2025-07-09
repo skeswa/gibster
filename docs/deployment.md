@@ -75,11 +75,11 @@ Go to Settings → Secrets → Actions and add:
 
 #### Optional Secrets
 
-| Secret Name       | Description             | Default |
-| ----------------- | ----------------------- | ------- |
-| `GIBNEY_EMAIL`    | Default Gibney email    | None    |
-| `GIBNEY_PASSWORD` | Default Gibney password | None    |
-| `SENTRY_DSN`      | Error tracking          | None    |
+| Secret Name            | Description          | Default |
+| ---------------------- | -------------------- | ------- |
+| `TEST_GIBNEY_EMAIL`    | Test Gibney email    | None    |
+| `TEST_GIBNEY_PASSWORD` | Test Gibney password | None    |
+| `SENTRY_DSN`           | Error tracking       | None    |
 
 ### How Secrets Work
 

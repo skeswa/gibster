@@ -33,8 +33,8 @@ This guide covers the complete development setup and workflow for Gibster.
 
    ```bash
    # Gibney credentials (required for testing scraper)
-   GIBNEY_EMAIL=your-email@example.com
-   GIBNEY_PASSWORD=your-password
+   TEST_GIBNEY_EMAIL=your-email@example.com
+   TEST_GIBNEY_PASSWORD=your-password
 
    # Security keys (generate for production)
    SECRET_KEY=your-secret-key-here

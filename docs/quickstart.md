@@ -38,8 +38,8 @@ After setup, edit the generated `.env` file in the `backend/` directory:
 
 ```bash
 # Edit backend/.env
-GIBNEY_EMAIL=your-email@example.com
-GIBNEY_PASSWORD=your-password
+TEST_GIBNEY_EMAIL=your-email@example.com
+TEST_GIBNEY_PASSWORD=your-password
 
 # Generate secure keys for production
 SECRET_KEY=<generate with: openssl rand -hex 32>
