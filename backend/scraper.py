@@ -739,7 +739,7 @@ class GibneyScraper:
                 )
 
             all_rentals = []
-            processed_ids = set()  # Track IDs to avoid duplicates
+            processed_ids: set[str] = set()  # Track IDs to avoid duplicates
             max_scroll_attempts = 50  # Safety limit to prevent infinite scrolling
             scroll_count = 0
             last_row_count = 0
