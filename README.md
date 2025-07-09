@@ -20,17 +20,17 @@ Gibster provides automated calendar synchronization for dancers who book rehears
 # Clone and setup
 git clone <your-repo-url>
 cd gibster
+source venv/bin/activate
 python scripts/dev_setup.py
 
 # Configure credentials
 # Edit backend/.env with your Gibney login
 
 # Start the server
-source venv/bin/activate
-python scripts/run_server.py
+python scripts/run_dev.py
 ```
 
-Visit http://localhost:8000 to get started.
+Visit http://localhost:3000 in your friendly neighborhood browser.
 
 For detailed setup instructions, see the [Quick Start Guide](docs/quickstart.md).
 
@@ -64,6 +64,7 @@ We welcome contributions! Please follow these steps:
 8. Open a Pull Request
 
 Please ensure:
+
 - All tests pass
 - Code follows project style guidelines
 - Test coverage remains above 80%
@@ -71,13 +72,12 @@ Please ensure:
 
 ## Support
 
-- 🐛 [Report Issues](https://github.com/<your-org>/gibster/issues)
-- 💬 [Discussions](https://github.com/<your-org>/gibster/discussions)
-- 📧 Contact: support@gibster.app
+- 🐛 [Report Issues](https://github.com/skeswa/gibster/issues)
+- 💬 [Discussions](https://github.com/skeswa/gibster/discussions)
 
 ## License
 
-This project is for educational purposes. Please respect Gibney's terms of service when using this tool.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
