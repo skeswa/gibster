@@ -12,6 +12,9 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Ensure public directory exists (even if empty)
+RUN mkdir -p /app/public
+
 # Production stage
 FROM node:20-alpine
 WORKDIR /app
@@ -29,7 +32,7 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
