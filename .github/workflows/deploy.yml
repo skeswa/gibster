@@ -140,6 +140,8 @@ jobs:
 
         resources:
         - ../../base
+        - ingress.yaml
+        - certificate.yaml
 
         images:
         - name: gibster-backend
@@ -161,8 +163,6 @@ jobs:
               path: /data/api-url
               value: https://${{ secrets.PRODUCTION_DOMAIN }}
         - path: deployment-patches.yaml
-        - path: ingress.yaml
-        - path: certificate.yaml
         EOF
         
         # Generate ingress from template
