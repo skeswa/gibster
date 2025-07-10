@@ -8,7 +8,8 @@ resources:
 - celery-deployment.yaml
 - configmap.yaml
 
-commonLabels:
-  app: gibster
+labels:
+- pairs:
+    app: gibster
   
 namespace: gibster
