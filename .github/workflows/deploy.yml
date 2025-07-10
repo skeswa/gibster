@@ -168,6 +168,10 @@ jobs:
         # Generate certificate from template
         sed "s/\${PRODUCTION_DOMAIN}/${{ secrets.PRODUCTION_DOMAIN }}/g" certificate-template.yaml > certificate.yaml
 
+    - name: Create namespace if it doesn't exist
+      run: |
+        kubectl create namespace gibster --dry-run=client -o yaml | kubectl apply -f -
+    
     - name: Create or update Kubernetes secrets
       run: |
         # Delete existing secret if it exists
