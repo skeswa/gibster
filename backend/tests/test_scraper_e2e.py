@@ -43,6 +43,15 @@ async def test_gibney_login():
         print("\n2. Set environment variables:")
         print("   export TEST_GIBNEY_EMAIL='your-email@example.com'")
         print("   export TEST_GIBNEY_PASSWORD='your-password'")
+
+        # Skip interactive input in CI environment
+        if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+            print("\n✗ Running in CI environment - interactive input not available")
+            print(
+                "Please set TEST_GIBNEY_EMAIL and TEST_GIBNEY_PASSWORD environment variables"
+            )
+            return False
+
         print("\n3. Enter them now:")
         email = input("   Gibney email: ").strip()
         password = input("   Gibney password: ").strip()
