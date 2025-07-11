@@ -1,10 +1,7 @@
 import { cookies } from 'next/headers';
 
 // Server-side API calls use internal/service URLs, client-side uses public URLs
-const API_BASE =
-  process.env.API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface User {
   id: string;
