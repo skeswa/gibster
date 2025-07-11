@@ -169,7 +169,7 @@ def run_sync_task_in_background(user_id: str, job_id: str):
     """Wrapper function to run sync task in background for non-Celery environments"""
     import asyncio
 
-    from .database import SessionLocal
+    from database import SessionLocal
 
     logger.info(f"Starting background sync task for user {user_id}, job {job_id}")
 
@@ -598,7 +598,7 @@ async def sync_bookings(
     try:
         # Check if there's already a running sync job for this user
         # Also clean up any stale jobs before checking
-        from .worker import check_and_mark_stale_jobs
+        from worker import check_and_mark_stale_jobs
 
         check_and_mark_stale_jobs(db)
 
@@ -636,7 +636,7 @@ async def sync_bookings(
         if USE_CELERY:
             # If Celery is available, queue as background task
             logger.debug(f"Queueing sync job {sync_job.id} as background task")
-            from .worker import scrape_user_task
+            from worker import scrape_user_task
 
             scrape_user_task.delay(str(current_user.id), str(sync_job.id))
         else:
@@ -958,7 +958,7 @@ async def cleanup_sync_jobs(
     logger.info(f"Manual sync job cleanup requested by user: {current_user.email}")
 
     try:
-        from .worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
+        from worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
 
         # Check for stale jobs
         stale_count = check_and_mark_stale_jobs(db)

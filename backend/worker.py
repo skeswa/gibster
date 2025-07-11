@@ -576,7 +576,7 @@ else:
                 logger.error(error_msg)
                 return {"successful": False, "error": error_msg}
 
-            from .scraper import scrape_user_bookings_sync
+            from scraper import scrape_user_bookings_sync
 
             try:
                 updated_bookings = scrape_user_bookings_sync(db, user)
