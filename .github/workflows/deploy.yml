@@ -159,9 +159,6 @@ jobs:
             - op: add
               path: /data/environment
               value: production
-            - op: replace
-              path: /data/api-url
-              value: https://${{ secrets.PRODUCTION_DOMAIN }}
         - path: deployment-patches.yaml
         EOF
         
