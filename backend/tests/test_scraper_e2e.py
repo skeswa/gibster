@@ -12,7 +12,7 @@ from pathlib import Path
 # Add parent directory to path to import scraper
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from backend.scraper import GibneyScraper, GibneyScrapingError
+from scraper import GibneyScraper, GibneyScrapingError
 
 # Try to load environment variables from backend/.env
 try:

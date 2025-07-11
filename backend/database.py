@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from .logging_config import get_logger
+from logging_config import get_logger
 
 # Load environment variables from backend/.env
 env_path = os.path.join(os.path.dirname(__file__), ".env")

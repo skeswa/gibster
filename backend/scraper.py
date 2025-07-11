@@ -9,12 +9,12 @@ from bs4 import BeautifulSoup, Tag
 from playwright.async_api import Browser, Page, async_playwright
 from sqlalchemy.orm import Session
 
-from .auth import decrypt_credential
-from .logging_config import get_logger
-from .models import Booking, User
+from auth import decrypt_credential
+from logging_config import get_logger
+from models import Booking, User
 
 if TYPE_CHECKING:
-    from .sync_logger import SyncJobLogger
+    from sync_logger import SyncJobLogger
 
 # Configure logging
 logger = get_logger("scraper")

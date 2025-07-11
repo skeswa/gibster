@@ -6,9 +6,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.database import Base
-from backend.models import SyncJob, SyncJobLog, User
-from backend.sync_logger import SyncJobLogger
+from database import Base
+from models import SyncJob, SyncJobLog, User
+from sync_logger import SyncJobLogger
 
 
 @pytest.fixture

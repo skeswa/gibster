@@ -1,14 +1,19 @@
 import os
+import sys
 import tempfile
+
+# Add backend directory to Python path
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, backend_dir)
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.database import Base, get_db
-from backend.main import app
-from backend.models import User
+from database import Base, get_db
+from main import app
+from models import User
 
 
 @pytest.fixture(scope="function")

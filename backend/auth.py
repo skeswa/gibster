@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from .logging_config import get_logger
+from logging_config import get_logger
 
 # Load environment variables from backend/.env
 env_path = os.path.join(os.path.dirname(__file__), ".env")

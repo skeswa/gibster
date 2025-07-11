@@ -8,10 +8,10 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from .logging_config import get_logger
-from .models import SyncJob, User
-from .scraper import scrape_user_bookings
-from .sync_logger import SyncJobLogger
+from logging_config import get_logger
+from models import SyncJob, User
+from scraper import scrape_user_bookings
+from sync_logger import SyncJobLogger
 
 # Load environment variables from backend/.env
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -384,7 +384,7 @@ def sync_scrape_all_users():
             try:
                 logger.debug(f"Processing user: {user.email}")
                 # For sync version, we can't use async - need to use sync scraper
-                from .scraper import scrape_user_bookings_sync
+                from scraper import scrape_user_bookings_sync
 
                 try:
                     updated_bookings = scrape_user_bookings_sync(db, user)

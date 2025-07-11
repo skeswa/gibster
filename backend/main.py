@@ -22,7 +22,7 @@ from fastapi.security import (
 )
 from sqlalchemy.orm import Session
 
-from .auth import (
+from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     decrypt_credential,
@@ -31,11 +31,11 @@ from .auth import (
     verify_password,
     verify_token,
 )
-from .calendar_generator import get_user_calendar
-from .database import engine, get_db
-from .logging_config import get_logger, set_request_id, setup_logging
-from .models import Base, Booking, SyncJob, SyncJobLog, User
-from .schemas import (
+from calendar_generator import get_user_calendar
+from database import engine, get_db
+from logging_config import get_logger, set_request_id, setup_logging
+from models import Base, Booking, SyncJob, SyncJobLog, User
+from schemas import (
     BookingResponse,
     CalendarUrl,
     SyncJobLogResponse,
@@ -48,8 +48,8 @@ from .schemas import (
     UserCredentials,
     UserResponse,
 )
-from .scraper import scrape_user_bookings
-from .worker import USE_CELERY, sync_scrape_user_with_job_tracking
+from scraper import scrape_user_bookings
+from worker import USE_CELERY, sync_scrape_user_with_job_tracking
 
 # Setup logging
 setup_logging()

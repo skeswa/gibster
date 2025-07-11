@@ -13,8 +13,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from .logging_config import get_logger
-from .models import SyncJobLog
+from logging_config import get_logger
+from models import SyncJobLog
 
 logger = get_logger("sync_logger")
 

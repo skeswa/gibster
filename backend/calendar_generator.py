@@ -5,8 +5,8 @@ from typing import List, cast
 from ics import Calendar, Event
 from sqlalchemy.orm import Session
 
-from .logging_config import get_logger
-from .models import Booking, User
+from logging_config import get_logger
+from models import Booking, User
 
 logger = get_logger("calendar_generator")
 

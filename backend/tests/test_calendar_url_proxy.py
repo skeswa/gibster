@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from ..calendar_generator import get_user_calendar
-from ..main import app, get_current_user
-from ..models import User
+from calendar_generator import get_user_calendar
+from main import app, get_current_user
+from models import User
 
 
 class TestCalendarUrlGeneration:

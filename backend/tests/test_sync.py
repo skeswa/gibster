@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from backend.models import SyncJob, User
-from backend.worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
+from models import SyncJob, User
+from worker import check_and_mark_stale_jobs, cleanup_old_sync_jobs
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ class TestSyncJobManagement:
     def test_stale_job_detection(self, test_db, test_user: User):
         """Test that stale jobs are properly marked as failed"""
         # Reset rate limiting for tests
-        import backend.worker as worker
+        import worker as worker
 
         worker._last_stale_check_time = None
 

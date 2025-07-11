@@ -58,11 +58,9 @@ spec:
         livenessProbe:
           exec:
             command:
-            - celery
-            - -A
-            - app.worker
-            - inspect
-            - ping
+            - python
+            - -c
+            - "import worker; exit(0 if worker.celery_app else 1)"
           initialDelaySeconds: 30
           periodSeconds: 60
         resources:

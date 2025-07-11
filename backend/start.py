@@ -25,8 +25,16 @@ def main():
     print(f"🚀 Starting Gibster server at http://{host}:{port}")
     print(f"📚 API documentation available at http://{host}:{port}/docs")
 
+    # Add current directory to Python path so imports work
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+    # Import the app directly to avoid module path issues
+    from main import app
+
     uvicorn.run(
-        "main:app",  # Import from current directory
+        app,
         host=host,
         port=port,
         reload=reload,
