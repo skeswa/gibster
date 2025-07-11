@@ -4,6 +4,7 @@ Celery worker startup script for Docker container
 """
 
 import os
+import signal
 import sys
 
 # Add backend directory to Python path so imports work
@@ -13,6 +14,24 @@ from celery import Celery
 
 # Import worker module to ensure tasks are registered
 import worker
+
+# Global flag for graceful shutdown
+shutdown_requested = False
+
+
+def handle_sigterm(signum, frame):
+    """Handle SIGTERM for graceful shutdown"""
+    global shutdown_requested
+    print(f"Received signal {signum}, initiating graceful shutdown...")
+    shutdown_requested = True
+    # Let Celery handle the shutdown gracefully
+    if worker.celery_app:
+        worker.celery_app.control.shutdown()
+
+
+# Register signal handlers
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
 
 if __name__ == "__main__":
     if worker.USE_CELERY and worker.celery_app:
@@ -26,6 +45,9 @@ if __name__ == "__main__":
                 "--loglevel=info",
                 "--concurrency=1",  # Single worker for now
                 "--pool=solo",  # Use solo pool for simplicity in container
+                "--without-heartbeat",  # Disable heartbeat in container environment
+                "--without-gossip",  # Disable gossip in container environment
+                "--without-mingle",  # Disable synchronization on startup
             ]
         )
     else:

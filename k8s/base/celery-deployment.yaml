@@ -59,10 +59,19 @@ spec:
           exec:
             command:
             - python
-            - -c
-            - "import worker; exit(0 if worker.celery_app else 1)"
+            - celery_healthcheck.py
+          initialDelaySeconds: 60
+          periodSeconds: 120
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - celery_healthcheck.py
           initialDelaySeconds: 30
-          periodSeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
         resources:
           requests:
             memory: "256Mi"
