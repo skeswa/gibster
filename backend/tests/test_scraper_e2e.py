@@ -118,10 +118,9 @@ async def test_gibney_login():
                         "\n⚠️  Warning: Could not verify login - no post-login elements found"
                     )
 
-                    # Take a screenshot for debugging
-                    screenshot_path = f"debug_login_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                    await scraper.page.screenshot(path=screenshot_path)
-                    print(f"Screenshot saved to: {screenshot_path}")
+                    # Log page state for debugging
+                    current_url = scraper.page.url
+                    print(f"Login test - Current URL: {current_url}")
 
                     return False
 

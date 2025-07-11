@@ -106,50 +106,32 @@ def setup_logging() -> None:
                 "filters": ["noise_reducer"],
                 "stream": sys.stdout,
             },
-            "file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "structured",
-                "filters": ["noise_reducer"],
-                "filename": "backend/logs/gibster.log",
-                "maxBytes": 10485760,  # 10MB
-                "backupCount": 5,
-            },
         },
         "loggers": {
             "": {  # Root logger
                 "level": log_level,
-                "handlers": (
-                    ["console", "file"] if environment == "production" else ["console"]
-                ),
+                "handlers": ["console"],
                 "propagate": False,
             },
             "gibster": {
                 "level": log_level,
-                "handlers": (
-                    ["console", "file"] if environment == "production" else ["console"]
-                ),
+                "handlers": ["console"],
                 "propagate": False,
             },
             # Reduce noise from specific modules
             "gibster.database": {
                 "level": "WARNING" if environment == "production" else "INFO",
-                "handlers": (
-                    ["console", "file"] if environment == "production" else ["console"]
-                ),
+                "handlers": ["console"],
                 "propagate": False,
             },
             "gibster.auth": {
                 "level": "INFO",
-                "handlers": (
-                    ["console", "file"] if environment == "production" else ["console"]
-                ),
+                "handlers": ["console"],
                 "propagate": False,
             },
             "gibster.scraper": {
                 "level": "INFO",
-                "handlers": (
-                    ["console", "file"] if environment == "production" else ["console"]
-                ),
+                "handlers": ["console"],
                 "propagate": False,
             },
             "uvicorn": {"level": "INFO", "handlers": ["console"], "propagate": False},
@@ -165,9 +147,6 @@ def setup_logging() -> None:
             },
         },
     }
-
-    # Create logs directory if it doesn't exist
-    os.makedirs("backend/logs", exist_ok=True)
 
     # Apply configuration
     logging.config.dictConfig(config)

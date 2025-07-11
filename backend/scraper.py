@@ -304,10 +304,11 @@ class GibneyScraper:
                 # Log current page state for debugging
                 logger.error("Failed to click login button, capturing page state...")
                 try:
-                    # Take a screenshot for debugging
-                    screenshot_path = f"debug_login_failure_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                    await self.page.screenshot(path=screenshot_path)
-                    logger.info(f"Saved debug screenshot to {screenshot_path}")
+                    # Log page state for debugging
+                    current_url = self.page.url
+                    logger.error(
+                        f"Login button click failed. Current URL: {current_url}"
+                    )
 
                     # Check for error messages on the page
                     error_selectors = [
@@ -457,12 +458,11 @@ class GibneyScraper:
                                 f"Invalid credentials. Please check your Gibney username and password."
                             )
                         else:
-                            # Save debug info
+                            # Log debug info
                             try:
-                                screenshot_path = f"debug_login_stuck_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                                await self.page.screenshot(path=screenshot_path)
+                                current_url = self.page.url
                                 logger.info(
-                                    f"Saved debug screenshot to {screenshot_path}"
+                                    f"Login may be stuck. Current URL: {current_url}"
                                 )
                             except:
                                 pass
@@ -704,21 +704,22 @@ class GibneyScraper:
             else:
                 logger.error("Failed to find any suitable table selector")
 
-                # Take screenshot for debugging
+                # Log page state for debugging
                 try:
-                    screenshot_path = f"debug_rentals_page_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                    await self.page.screenshot(path=screenshot_path)
-                    logger.info(f"Saved debug screenshot to {screenshot_path}")
-                except Exception as screenshot_error:
-                    logger.error(f"Failed to save screenshot: {screenshot_error}")
+                    current_url = self.page.url
+                    logger.info(
+                        f"On rentals page for debugging. Current URL: {current_url}"
+                    )
+                except Exception as url_error:
+                    logger.error(f"Failed to get current URL: {url_error}")
 
-                # Save HTML for debugging
+                # Get HTML for debugging analysis
                 try:
                     html_content = await self.page.content()
-                    html_path = f"debug_rentals_page_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-                    with open(html_path, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-                    logger.info(f"Saved debug HTML to {html_path}")
+                    # Log first 500 chars of HTML for debugging
+                    logger.debug(
+                        f"Page HTML preview (first 500 chars): {html_content[:500]}..."
+                    )
 
                     # Log what we can see on the page
                     soup = BeautifulSoup(html_content, "lxml")
@@ -926,16 +927,20 @@ class GibneyScraper:
                             f"No new content after {MAX_NO_NEW_CONTENT_ATTEMPTS} attempts at row count {current_row_count}, "
                             f"total unique bookings: {len(all_rentals)}. Assuming all data loaded."
                         )
-                        # Take a debug screenshot when stopping
+                        # Log scroll state when stopping
                         if no_new_content_count == MAX_NO_NEW_CONTENT_ATTEMPTS:
                             try:
-                                screenshot_path = f"debug_scroll_stop_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                                await self.page.screenshot(path=screenshot_path)
+                                scroll_position = await self.page.evaluate(
+                                    "window.scrollY"
+                                )
+                                page_height = await self.page.evaluate(
+                                    "document.body.scrollHeight"
+                                )
                                 logger.info(
-                                    f"Saved debug screenshot to {screenshot_path}"
+                                    f"Stopping scroll at position {scroll_position}/{page_height}"
                                 )
                             except Exception as e:
-                                logger.debug(f"Failed to save debug screenshot: {e}")
+                                logger.debug(f"Failed to get scroll position: {e}")
                         break
                 else:
                     rows_added = current_row_count - last_row_count
