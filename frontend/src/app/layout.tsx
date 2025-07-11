@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/app/providers/AuthProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
 import ClientHeader from '@/components/ClientHeader';
+import ConfigLogger from '@/components/ConfigLogger';
 import { getServerSession } from '@/lib/auth';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -37,7 +38,10 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider initialUser={user}>{children}</AuthProvider>
+          <AuthProvider initialUser={user}>
+            <ConfigLogger />
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,4 +1,6 @@
 import os
+import platform
+import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -54,6 +56,81 @@ from worker import USE_CELERY, sync_scrape_user_with_job_tracking
 # Setup logging
 setup_logging()
 logger = get_logger("main")
+
+
+def mask_sensitive_value(value: str, visible_chars: int = 4) -> str:
+    """Mask sensitive values for logging, showing only first and last few characters"""
+    if not value or len(value) <= visible_chars * 2:
+        return "***"
+    return f"{value[:visible_chars]}...{value[-visible_chars:]}"
+
+
+def get_safe_database_url(url: str) -> str:
+    """Extract safe database URL for logging (no passwords)"""
+    if not url:
+        return "Not configured"
+
+    # Handle SQLite
+    if "sqlite" in url:
+        return url
+
+    # Handle PostgreSQL/MySQL etc
+    try:
+        # Simple regex to remove password
+        import re
+
+        # Match pattern: //username:password@host
+        pattern = r"://([^:]+):([^@]+)@"
+        replacement = r"://\1:***@"
+        return re.sub(pattern, replacement, url)
+    except:
+        return mask_sensitive_value(url)
+
+
+def log_configuration_summary():
+    """Log application configuration summary at startup"""
+    config_info = {
+        "service": "gibster-backend",
+        "version": "1.0.0",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "python_version": sys.version.split()[0],
+        "platform": {
+            "system": platform.system(),
+            "release": platform.release(),
+            "machine": platform.machine(),
+        },
+        "configuration": {
+            "database_url": get_safe_database_url(os.getenv("DATABASE_URL", "")),
+            "log_level": os.getenv("LOG_LEVEL", "INFO"),
+            "app_host": os.getenv("APP_HOST", "0.0.0.0"),
+            "app_port": os.getenv("APP_PORT", "8000"),
+            "frontend_base_url": os.getenv("FRONTEND_BASE_URL", "Not set"),
+            "celery_enabled": USE_CELERY,
+            "redis_host": os.getenv("REDIS_HOST", "Not set") if USE_CELERY else "N/A",
+            "redis_port": os.getenv("REDIS_PORT", "6379") if USE_CELERY else "N/A",
+            "auth_token_expire_minutes": ACCESS_TOKEN_EXPIRE_MINUTES,
+        },
+        "security": {
+            "secret_key_configured": bool(os.getenv("SECRET_KEY")),
+            "encryption_key_configured": bool(os.getenv("ENCRYPTION_KEY")),
+        },
+    }
+
+    logger.info("=" * 60)
+    logger.info("GIBSTER BACKEND CONFIGURATION")
+    logger.info("=" * 60)
+    for key, value in config_info.items():
+        if isinstance(value, dict):
+            logger.info(f"{key.upper()}:")
+            for sub_key, sub_value in value.items():
+                logger.info(f"  {sub_key}: {sub_value}")
+        else:
+            logger.info(f"{key.upper()}: {value}")
+    logger.info("=" * 60)
+
+
+# Log configuration summary
+log_configuration_summary()
 
 # Create database tables
 logger.info("Creating database tables")
@@ -263,11 +340,25 @@ async def health_check(db: Session = Depends(get_db)):
         from sqlalchemy import text
 
         db.execute(text("SELECT 1"))
+
+        # Include configuration info for debugging
+        config = {
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "celery_enabled": USE_CELERY,
+            "database_type": "sqlite"
+            if "sqlite" in os.getenv("DATABASE_URL", "")
+            else "postgresql",
+            "frontend_base_url_set": bool(os.getenv("FRONTEND_BASE_URL")),
+            "log_level": os.getenv("LOG_LEVEL", "INFO"),
+        }
+
         return {
             "status": "healthy",
             "service": "gibster-api",
             "version": "1.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {"database": "ok"},
+            "config": config,
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")

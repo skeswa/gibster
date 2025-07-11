@@ -35,6 +35,18 @@ signal.signal(signal.SIGINT, handle_sigterm)
 
 if __name__ == "__main__":
     if worker.USE_CELERY and worker.celery_app:
+        import platform
+
+        print("=" * 60)
+        print("GIBSTER CELERY WORKER STARTUP")
+        print("=" * 60)
+        print(f"Python Version: {sys.version.split()[0]}")
+        print(f"Platform: {platform.system()} {platform.release()}")
+        print(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+        print(f"Redis Host: {worker.REDIS_HOST}")
+        print(f"Redis Port: {worker.REDIS_PORT}")
+        print(f"Redis Password: {'***' if os.getenv('REDIS_PASSWORD') else 'Not set'}")
+        print("=" * 60)
         print("🚀 Starting Celery worker...")
         print(f"📡 Connected to Redis at {worker.REDIS_HOST}:{worker.REDIS_PORT}")
 

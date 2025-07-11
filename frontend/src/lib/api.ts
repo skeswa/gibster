@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
+import { API_BASE } from './config';
 
 interface ApiOptions extends RequestInit {
   skipAuth?: boolean;

@@ -34,9 +34,30 @@ else:
 # Check if we're in development mode without Redis
 USE_CELERY = os.getenv("USE_CELERY", "true").lower() == "true"
 
-logger.info(
-    f"Worker configuration: USE_CELERY={USE_CELERY}, REDIS_URL={REDIS_URL.split('@')[0] if REDIS_URL else 'None'}..."
-)
+
+# Log worker configuration
+def log_worker_configuration():
+    """Log worker configuration at startup"""
+    logger.info("=" * 60)
+    logger.info("GIBSTER WORKER CONFIGURATION")
+    logger.info("=" * 60)
+    logger.info(f"USE_CELERY: {USE_CELERY}")
+    logger.info(f"REDIS_HOST: {REDIS_HOST}")
+    logger.info(f"REDIS_PORT: {REDIS_PORT}")
+    logger.info(f"REDIS_PASSWORD: {'***' if REDIS_PASSWORD else 'Not set'}")
+    # DATABASE_URL might not be defined yet when this is called during import
+    if "DATABASE_URL" in globals():
+        logger.info(
+            f"DATABASE_URL: {DATABASE_URL.split('://')[0] if DATABASE_URL else 'Not set'}://..."
+        )
+    else:
+        db_url = os.getenv("DATABASE_URL", "")
+        logger.info(
+            f"DATABASE_URL: {db_url.split('://')[0] if db_url else 'Not set'}://..."
+        )
+    logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT', 'development')}")
+    logger.info("=" * 60)
+
 
 if USE_CELERY:
     try:
@@ -64,6 +85,9 @@ if USE_CELERY:
             },
             timezone="UTC",
         )
+        logger.info("Celery beat schedule configured:")
+        logger.info("  - cleanup-sync-jobs: Every 15 minutes")
+        logger.info("  - scrape-all-users: Every 4 hours")
     except Exception as e:
         logger.warning(f"Redis not available: {e}. Running without background tasks.")
         USE_CELERY = False
@@ -74,6 +98,10 @@ else:
 
 # Database setup for worker
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/gibster_dev.db")
+
+# Now we can log the full configuration
+log_worker_configuration()
+
 logger.info(f"Worker database configuration: {DATABASE_URL.split('://')[0]}://...")
 
 if "sqlite" in DATABASE_URL:
