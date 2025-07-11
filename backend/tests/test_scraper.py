@@ -423,7 +423,7 @@ class TestScraperPagination:
         scraper.page = mock_page
 
         # This should eventually stop due to max_scroll_attempts limit
-        with patch("backend.scraper.logger") as mock_logger:
+        with patch("scraper.logger") as mock_logger:
             rentals = await scraper.scrape_rentals()
 
             # Check that we hit the max scroll attempts warning
