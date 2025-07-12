@@ -61,10 +61,8 @@ class ApiClient {
       }
     }
 
-    const url = `${API_BASE}${endpoint}`;
-
     try {
-      const response = await fetch(url, {
+      const response = await fetch(endpoint, {
         ...restOptions,
         headers: requestHeaders,
       });

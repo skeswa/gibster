@@ -202,19 +202,15 @@ def get_user_calendar(db: Session, calendar_uuid: str) -> str:
 
         logger.info(f"Found user: {user.email} for calendar UUID: {calendar_uuid_obj}")
 
-        # Get all active bookings
+        # Get all bookings
         logger.debug(f"Querying bookings for user: {user.email}")
         bookings = (
             db.query(Booking)
-            .filter(
-                Booking.user_id == user.id,
-                Booking.end_time
-                >= datetime.now(timezone.utc),  # Only future/current bookings
-            )
+            .filter(Booking.user_id == user.id)
             .all()
         )
 
-        logger.info(f"Found {len(bookings)} active bookings for user: {user.email}")
+        logger.info(f"Found {len(bookings)} bookings for user: {user.email}")
 
         # Generate and return the calendar
         calendar_content = generate_ical_calendar(user, bookings)
