@@ -105,6 +105,8 @@ jobs:
       with:
         context: ./frontend
         push: true
+        build-args: |
+          NEXT_PUBLIC_API_URL=http://gibster-backend:8000
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
