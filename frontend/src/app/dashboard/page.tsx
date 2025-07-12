@@ -3,6 +3,17 @@ import { getServerSession } from '@/lib/auth';
 import Dashboard from '@/components/Dashboard';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { cookies } from 'next/headers';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Dashboard - Gibster',
+  description:
+    'Manage your Gibney dance studio bookings and calendar sync settings',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 // Server-side API calls use internal/service URLs, client-side uses public URLs
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

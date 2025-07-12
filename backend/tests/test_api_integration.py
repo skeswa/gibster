@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -164,6 +164,14 @@ class TestCalendarEndpoints:
 
         assert response.status_code == 404
 
+    def test_calendar_feed_malformed_uuid(self, client):
+        """Test calendar feed with malformed UUID format"""
+        response = client.get("/calendar/not-a-uuid.ics")
+        assert response.status_code == 404
+
+        response = client.get("/calendar/12345.ics")
+        assert response.status_code == 404
+
     def test_calendar_feed_valid_uuid_no_bookings(
         self, client, sample_user_data, test_db
     ):
@@ -184,20 +192,73 @@ class TestCalendarEndpoints:
         assert response.status_code == 200
         assert response.headers["content-type"] == "text/calendar; charset=utf-8"
 
+        # Check personalized headers
+        assert "content-disposition" in response.headers
+        content_disposition = response.headers["content-disposition"]
+        expected_filename = (
+            f"gibster-{sample_user_data['email'].replace('@', '-at-')}.ics"
+        )
+        assert expected_filename in content_disposition
+        assert "inline" in content_disposition
+
+        # Check cache headers
+        assert response.headers["cache-control"] == "public, max-age=7200"
+
+        # Note: X-WR-CALNAME is part of the calendar content, not HTTP headers
         calendar_content = response.text
         assert "BEGIN:VCALENDAR" in calendar_content
         assert "END:VCALENDAR" in calendar_content
         assert "PRODID:Gibster" in calendar_content
+        assert f"X-WR-CALNAME:Gibster - {sample_user_data['email']}" in calendar_content
+        assert (
+            "X-WR-CALDESC:Your Gibney dance studio bookings synced by Gibster"
+            in calendar_content
+        )
 
     def test_calendar_feed_with_bookings(self, client, sample_user_data, test_db):
         """Test calendar feed with bookings"""
         # Setup user
         headers = TestUserEndpoints().setup_authenticated_user(client, sample_user_data)
 
-        # Create user in database and add a booking
-        # Note: This would require getting the user ID and creating a booking
-        # For now, we test the endpoint structure
+        # Get the user from the database to add bookings
+        user = (
+            test_db.query(User).filter(User.email == sample_user_data["email"]).first()
+        )
 
+        # Create test bookings
+        booking1 = Booking(
+            id="test-booking-1",
+            user_id=user.id,
+            name="R-123456",
+            start_time=datetime(2024, 3, 15, 10, 0),
+            end_time=datetime(2024, 3, 15, 12, 0),
+            studio="Studio A",
+            location="280 Broadway",
+            status="Confirmed",
+            price=75.00,
+            record_url="https://gibney.my.site.com/s/rental-form?Id=test-booking-1",
+            last_seen=datetime.now(timezone.utc),
+        )
+
+        booking2 = Booking(
+            id="test-booking-2",
+            user_id=user.id,
+            name="R-789012",
+            start_time=datetime(2024, 3, 20, 14, 0),
+            end_time=datetime(2024, 3, 20, 16, 0),
+            studio="Studio B",
+            location="890 Broadway",
+            status="Confirmed",
+            price=100.00,
+            record_url="https://gibney.my.site.com/s/rental-form?Id=test-booking-2",
+            last_seen=datetime.now(timezone.utc),
+        )
+
+        test_db.add(booking1)
+        test_db.add(booking2)
+        test_db.commit()
+
+        # Get calendar URL and fetch the calendar
         response = client.get("/api/v1/user/calendar_url", headers=headers)
         calendar_url = response.json()["calendar_url"]
         calendar_path = calendar_url.split("localhost:8000")[-1]
@@ -205,6 +266,73 @@ class TestCalendarEndpoints:
         response = client.get(calendar_path)
         assert response.status_code == 200
         assert "text/calendar" in response.headers["content-type"]
+
+        # Check personalized filename
+        content_disposition = response.headers["content-disposition"]
+        expected_filename = (
+            f"gibster-{sample_user_data['email'].replace('@', '-at-')}.ics"
+        )
+        assert expected_filename in content_disposition
+
+        # Check calendar content includes bookings
+        calendar_content = response.text
+        assert "BEGIN:VEVENT" in calendar_content
+        assert "Studio A at 280 Broadway" in calendar_content
+        assert "Studio B at 890 Broadway" in calendar_content
+        assert "R-123456" in calendar_content
+        assert "R-789012" in calendar_content
+        assert f"X-WR-CALNAME:Gibster - {sample_user_data['email']}" in calendar_content
+
+    def test_calendar_feed_special_email_characters(self, client, test_db):
+        """Test calendar feed with emails containing special characters"""
+        # Test with email containing special characters
+        special_email_data = {
+            "email": "test+special.user@example.com",
+            "password": "testpassword123",
+        }
+
+        headers = TestUserEndpoints().setup_authenticated_user(
+            client, special_email_data
+        )
+
+        # Get calendar URL
+        response = client.get("/api/v1/user/calendar_url", headers=headers)
+        calendar_url = response.json()["calendar_url"]
+        calendar_path = calendar_url.split("localhost:8000")[-1]
+
+        # Get calendar feed
+        response = client.get(calendar_path)
+        assert response.status_code == 200
+
+        # Check filename formatting
+        content_disposition = response.headers["content-disposition"]
+        expected_filename = "gibster-test+special.user-at-example.com.ics"
+        assert expected_filename in content_disposition
+
+        # Check calendar name in content
+        calendar_content = response.text
+        assert (
+            "X-WR-CALNAME:Gibster - test+special.user@example.com" in calendar_content
+        )
+
+    def test_calendar_headers_caching_validation(
+        self, client, sample_user_data, test_db
+    ):
+        """Test that calendar responses have proper caching headers"""
+        headers = TestUserEndpoints().setup_authenticated_user(client, sample_user_data)
+
+        response = client.get("/api/v1/user/calendar_url", headers=headers)
+        calendar_url = response.json()["calendar_url"]
+        calendar_path = calendar_url.split("localhost:8000")[-1]
+
+        response = client.get(calendar_path)
+
+        # Verify caching headers
+        assert response.headers["cache-control"] == "public, max-age=7200"
+        assert response.headers["access-control-allow-origin"] == "*"
+
+        # Verify the X-WR-CALNAME is NOT in HTTP headers (only in content)
+        assert "x-wr-calname" not in response.headers
 
 
 @pytest.mark.integration

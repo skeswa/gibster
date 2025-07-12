@@ -1,0 +1,31 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C3AED;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#bg-gradient)"/>
+  
+  <!-- Logo/Icon -->
+  <g transform="translate(500, 160)">
+    <!-- Calendar outline -->
+    <rect x="40" y="80" width="160" height="140" rx="12" stroke="white" stroke-width="8" fill="none"/>
+    <!-- Calendar header -->
+    <rect x="40" y="80" width="160" height="32" rx="12" fill="white"/>
+    <!-- Calendar hanging hooks -->
+    <rect x="80" y="60" width="12" height="32" rx="6" fill="white"/>
+    <rect x="148" y="60" width="12" height="32" rx="6" fill="white"/>
+    <!-- Sync arrows -->
+    <path d="M120 140 Q150 110, 180 140" stroke="#7C3AED" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M176 136 L180 140 L176 144" stroke="#7C3AED" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M120 180 Q90 210, 60 180" stroke="#7C3AED" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M64 184 L60 180 L64 176" stroke="#7C3AED" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="600" y="440" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="72" font-weight="700" text-anchor="middle" fill="white">Gibster</text>
+  <text x="600" y="500" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="32" font-weight="400" text-anchor="middle" fill="white" opacity="0.9">Sync your Gibney dance bookings</text>
+</svg>

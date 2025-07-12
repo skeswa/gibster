@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Add parent directory to Python path so we can import from backend module
 parent_dir = os.path.dirname(os.path.dirname(__file__))
-backend_dir = os.path.join(parent_dir, 'backend')
+backend_dir = os.path.join(parent_dir, "backend")
 sys.path.insert(0, parent_dir)
 sys.path.insert(0, backend_dir)
 

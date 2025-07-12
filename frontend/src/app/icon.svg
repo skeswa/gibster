@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Calendar base -->
+  <rect x="64" y="128" width="384" height="320" rx="32" fill="#1e293b" stroke="#1e293b" stroke-width="16"/>
+  
+  <!-- Calendar header -->
+  <rect x="64" y="128" width="384" height="80" rx="32" fill="#3b82f6"/>
+  
+  <!-- Calendar hooks -->
+  <rect x="144" y="80" width="32" height="80" rx="16" fill="#1e293b"/>
+  <rect x="336" y="80" width="32" height="80" rx="16" fill="#1e293b"/>
+  
+  <!-- Calendar grid lines -->
+  <line x1="176" y1="256" x2="336" y2="256" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  <line x1="176" y1="320" x2="336" y2="320" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  <line x1="176" y1="384" x2="336" y2="384" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Sync arrows -->
+  <g transform="translate(256, 304)">
+    <!-- Upper arrow -->
+    <path d="M -40 -20 Q -40 -40, -20 -40 L 20 -40 Q 40 -40, 40 -20" 
+          fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round"/>
+    <path d="M 30 -30 L 40 -20 L 50 -30" 
+          fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Lower arrow -->
+    <path d="M 40 20 Q 40 40, 20 40 L -20 40 Q -40 40, -40 20" 
+          fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round"/>
+    <path d="M -50 30 L -40 20 L -30 30" 
+          fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

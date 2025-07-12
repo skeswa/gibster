@@ -1,6 +1,17 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy - Gibster',
+  description:
+    'Learn how Gibster protects your privacy and handles your data securely',
+  openGraph: {
+    title: 'Privacy Policy - Gibster',
+    description: 'Our commitment to protecting your privacy and data',
+  },
+};
 
 export default function PrivacyPage() {
   return (

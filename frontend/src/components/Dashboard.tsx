@@ -88,7 +88,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  user: _user,
+  user,
   bookings,
   calendarUrl,
 }) => {
@@ -387,7 +387,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </Button>
                     <Button variant='outline' asChild>
                       <a
-                        href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(calendarUrl)}&name=Gibney%20Bookings`}
+                        href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(calendarUrl)}&name=${encodeURIComponent(`Gibster - ${user.email}`)}`}
                         target='_blank'
                         rel='noopener noreferrer'
                       >

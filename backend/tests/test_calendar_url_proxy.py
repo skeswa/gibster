@@ -120,15 +120,26 @@ class TestCalendarUrlGeneration:
         finally:
             app.dependency_overrides.clear()
 
-    # @pytest.mark.integration
-    # def test_calendar_feed_endpoint_accessibility(self, client, mock_user):
-    #     """Test that the calendar feed endpoint is accessible"""
-    #     # Create a test request to the calendar endpoint
-    #     # This tests that the endpoint exists and responds
-    #     # Mock at the location where it's used in main.py
-    #     with patch("backend.main.get_user_calendar", return_value="BEGIN:VCALENDAR\nEND:VCALENDAR") as mock_cal:
-    #         response = client.get(f"/calendar/{mock_user.calendar_uuid}.ics")
-    #
-    #     assert response.status_code == 200
-    #     assert response.headers["content-type"] == "text/calendar"
-    #     assert "gibney-bookings" in response.headers.get("content-disposition", "").lower()
+    @pytest.mark.integration
+    def test_calendar_feed_endpoint_accessibility(self, client, mock_user):
+        """Test that the calendar feed endpoint is accessible"""
+        # Create a test request to the calendar endpoint
+        # This tests that the endpoint exists and responds
+        # Mock at the location where it's used in main.py
+        # get_user_calendar now returns a tuple (content, email)
+        calendar_content = (
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:Gibster\r\nEND:VCALENDAR"
+        )
+        with patch(
+            "main.get_user_calendar", return_value=(calendar_content, mock_user.email)
+        ) as mock_cal:
+            response = client.get(f"/calendar/{mock_user.calendar_uuid}.ics")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/calendar; charset=utf-8"
+
+        # Check personalized filename
+        content_disposition = response.headers.get("content-disposition", "")
+        expected_filename = f"gibster-{mock_user.email.replace('@', '-at-')}.ics"
+        assert expected_filename in content_disposition
+        assert "inline" in content_disposition

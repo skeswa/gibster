@@ -837,19 +837,19 @@ async def get_calendar_feed(calendar_uuid: str, db: Session = Depends(get_db)):
     logger.info(f"Calendar feed requested for UUID: {calendar_uuid}")
 
     try:
-        calendar_content = get_user_calendar(db, calendar_uuid)
+        calendar_content, user_email = get_user_calendar(db, calendar_uuid)
 
         logger.info(f"Calendar feed generated successfully for UUID: {calendar_uuid}")
+
         return Response(
             content=calendar_content,
             media_type="text/calendar",
             headers={
                 "Content-Disposition": (
-                    f"inline; filename=gibney-bookings-{calendar_uuid}.ics"
+                    f"inline; filename=gibster-{user_email.replace('@', '-at-')}.ics"
                 ),
                 # Allow caching for 2 hours to reduce server load
                 "Cache-Control": "public, max-age=7200",
-                "X-WR-CALNAME": "Gibney Bookings",
                 # Support both https and webcal protocols
                 "Access-Control-Allow-Origin": "*",
             },

@@ -107,6 +107,8 @@ Gibster is a web application designed to synchronize Gibney dance space bookings
 - **FR-5.1.2**: The system shall include booking name, time, location, and details in calendar events
 - **FR-5.1.3**: The system shall filter out canceled bookings from calendar feeds
 - **FR-5.1.4**: The system shall support both HTTPS and webcal protocols
+- **FR-5.1.5**: The system shall personalize calendar names with format "Gibster - user@email.com"
+- **FR-5.1.6**: The system shall include personalized metadata (X-WR-CALNAME, X-WR-CALDESC) in calendar content
 
 #### 5.2 Calendar URL Management
 
@@ -114,12 +116,13 @@ Gibster is a web application designed to synchronize Gibney dance space bookings
 - **FR-5.2.2**: The system shall allow calendar access without authentication via UUID
 - **FR-5.2.3**: The system shall support copy-to-clipboard functionality for calendar URLs
 - **FR-5.2.4**: The system shall proxy calendar URLs through the frontend domain
+- **FR-5.2.5**: The system shall generate personalized filenames for downloaded calendars (gibster-user-at-email.com.ics)
 
 #### 5.3 Calendar Application Support
 
 - **FR-5.3.1**: The system shall provide one-click subscription for Google Calendar
 - **FR-5.3.2**: The system shall provide one-click subscription for Apple Calendar
-- **FR-5.3.3**: The system shall provide one-click subscription for Outlook
+- **FR-5.3.3**: The system shall provide one-click subscription for Outlook with personalized calendar name
 - **FR-5.3.4**: The system shall cache calendar feeds for 2 hours for performance
 
 ### 6. Web Scraping

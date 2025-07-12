@@ -19,6 +19,12 @@ class TestCalendarGeneration:
         assert "END:VCALENDAR" in calendar_str
         assert "VERSION:2.0" in calendar_str
         assert "PRODID" in calendar_str
+        # Check for personalized calendar name
+        assert "X-WR-CALNAME:Gibster - test@example.com" in calendar_str
+        assert (
+            "X-WR-CALDESC:Your Gibney dance studio bookings synced by Gibster"
+            in calendar_str
+        )
         # Should not contain any events
         assert "BEGIN:VEVENT" not in calendar_str
 

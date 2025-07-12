@@ -18,6 +18,8 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
     )
 
     cal = Calendar()
+    # The ics library v0.7.2 doesn't support setting calendar name directly
+    # We'll add it during serialization
 
     processed_bookings = 0
     skipped_bookings = 0
@@ -74,6 +76,14 @@ def generate_ical_calendar(user: User, bookings: List[Booking]) -> str:
         # Replace the default PRODID with Gibster
         calendar_str = calendar_str.replace(
             "PRODID:ics.py - http://git.io/lLljaA", "PRODID:Gibster"
+        )
+
+        # Add calendar name property after BEGIN:VCALENDAR
+        # The ics library uses \r\n line endings
+        calendar_name = f"Gibster - {user.email}"
+        calendar_str = calendar_str.replace(
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:Gibster",
+            f"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:Gibster\r\nX-WR-CALNAME:{calendar_name}\r\nX-WR-CALDESC:Your Gibney dance studio bookings synced by Gibster",
         )
 
         logger.debug(
@@ -171,8 +181,12 @@ def generate_ical(bookings: List[Booking]) -> str:
         raise
 
 
-def get_user_calendar(db: Session, calendar_uuid: str) -> str:
-    """Get iCal calendar for a user by their calendar UUID"""
+def get_user_calendar(db: Session, calendar_uuid: str) -> tuple[str, str]:
+    """Get iCal calendar for a user by their calendar UUID
+
+    Returns:
+        tuple: (calendar_content, user_email)
+    """
     logger.info(f"Fetching calendar for UUID: {calendar_uuid}")
 
     try:
@@ -204,18 +218,14 @@ def get_user_calendar(db: Session, calendar_uuid: str) -> str:
 
         # Get all bookings
         logger.debug(f"Querying bookings for user: {user.email}")
-        bookings = (
-            db.query(Booking)
-            .filter(Booking.user_id == user.id)
-            .all()
-        )
+        bookings = db.query(Booking).filter(Booking.user_id == user.id).all()
 
         logger.info(f"Found {len(bookings)} bookings for user: {user.email}")
 
         # Generate and return the calendar
         calendar_content = generate_ical_calendar(user, bookings)
         logger.info(f"Calendar generated successfully for user: {user.email}")
-        return calendar_content
+        return calendar_content, user.email
 
     except ValueError:
         # Re-raise ValueError (calendar not found) as is

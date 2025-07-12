@@ -1,6 +1,17 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service - Gibster',
+  description:
+    'Read the Gibster terms of service and understand your rights and responsibilities',
+  openGraph: {
+    title: 'Terms of Service - Gibster',
+    description: 'Our terms of service and usage guidelines',
+  },
+};
 
 export default function TermsPage() {
   return (
