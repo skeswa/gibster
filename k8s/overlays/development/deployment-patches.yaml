@@ -13,6 +13,8 @@ spec:
           value: "development"
         - name: LOG_LEVEL
           value: "DEBUG"
+        - name: FRONTEND_BASE_URL
+          value: "http://localhost:3000"
 ---
 apiVersion: apps/v1
 kind: Deployment

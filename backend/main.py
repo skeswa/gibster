@@ -345,9 +345,9 @@ async def health_check(db: Session = Depends(get_db)):
         config = {
             "environment": os.getenv("ENVIRONMENT", "development"),
             "celery_enabled": USE_CELERY,
-            "database_type": "sqlite"
-            if "sqlite" in os.getenv("DATABASE_URL", "")
-            else "postgresql",
+            "database_type": (
+                "sqlite" if "sqlite" in os.getenv("DATABASE_URL", "") else "postgresql"
+            ),
             "frontend_base_url_set": bool(os.getenv("FRONTEND_BASE_URL")),
             "log_level": os.getenv("LOG_LEVEL", "INFO"),
         }
@@ -922,7 +922,11 @@ async def get_sync_job_logs(
                     timestamp=log.timestamp,  # type: ignore
                     level=cast(str, log.level),
                     message=cast(str, log.message),
-                    details=cast(Dict[str, Any], log.details) if log.details else {},
+                    details=(
+                        cast(Dict[str, Any], log.details)
+                        if getattr(log, "details", None)
+                        else {}
+                    ),
                 )
                 for log in logs
             ],

@@ -167,6 +167,9 @@ jobs:
         
         # Generate certificate from template
         sed "s/\${PRODUCTION_DOMAIN}/${{ secrets.PRODUCTION_DOMAIN }}/g" certificate-template.yaml > certificate.yaml
+        
+        # Update deployment patches with production domain
+        sed -i "s|https://gibster.com|https://${{ secrets.PRODUCTION_DOMAIN }}|g" deployment-patches.yaml
 
     - name: Create namespace if it doesn't exist
       run: |
