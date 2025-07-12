@@ -371,7 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className='flex flex-wrap gap-2'>
                     <Button asChild>
                       <a
-                        href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarUrl)}`}
+                        href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(calendarUrl)}`}
                         target='_blank'
                         rel='noopener noreferrer'
                       >
@@ -379,11 +379,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Google Calendar
                       </a>
                     </Button>
-                    <Button variant='outline' asChild>
-                      <a href={calendarUrl.replace('https://', 'webcal://')}>
-                        <Calendar className='mr-2 h-4 w-4' />
-                        Apple Calendar
-                      </a>
+                    <Button 
+                      variant='outline' 
+                      onClick={() => {
+                        const webcalUrl = calendarUrl.replace('https://', 'webcal://');
+                        window.location.href = webcalUrl;
+                      }}
+                    >
+                      <Calendar className='mr-2 h-4 w-4' />
+                      Apple Calendar
                     </Button>
                     <Button variant='outline' asChild>
                       <a
