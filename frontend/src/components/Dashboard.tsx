@@ -379,10 +379,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Google Calendar
                       </a>
                     </Button>
-                    <Button 
-                      variant='outline' 
+                    <Button
+                      variant='outline'
                       onClick={() => {
-                        const webcalUrl = calendarUrl.replace('https://', 'webcal://');
+                        const webcalUrl = calendarUrl.replace(
+                          'https://',
+                          'webcal://'
+                        );
                         window.location.href = webcalUrl;
                       }}
                     >
