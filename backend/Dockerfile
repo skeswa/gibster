@@ -25,18 +25,20 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Set working directory
 WORKDIR /app
 
-# Install Playwright browsers
-RUN playwright install chromium
-RUN playwright install-deps
-
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash --uid 1000 app
 
 # Copy application code
 COPY --chown=app:app . .
 
+# Install Playwright dependencies as root
+RUN playwright install-deps
+
 # Switch to non-root user
 USER app
+
+# Install Playwright browsers as app user
+RUN playwright install chromium
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
