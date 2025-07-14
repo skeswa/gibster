@@ -371,7 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className='flex flex-wrap gap-2'>
                     <Button asChild>
                       <a
-                        href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(calendarUrl)}`}
+                        href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(calendarUrl.replace('https://', 'webcal://'))}`}
                         target='_blank'
                         rel='noopener noreferrer'
                       >

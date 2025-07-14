@@ -225,7 +225,7 @@ def get_user_calendar(db: Session, calendar_uuid: str) -> tuple[str, str]:
         # Generate and return the calendar
         calendar_content = generate_ical_calendar(user, bookings)
         logger.info(f"Calendar generated successfully for user: {user.email}")
-        return calendar_content, user.email
+        return calendar_content, cast(str, user.email)
 
     except ValueError:
         # Re-raise ValueError (calendar not found) as is
